@@ -1,7 +1,8 @@
 # Lerobot-Uranus-VLA-Demo
 
-把 [Lerobot-MujoCo-VLA-Tutorial](../Lerobot-MujoCo-VLA-Tutorial) 的 VLA 训练流程
-"移植"到一个不同的机械臂 —— **Uranus 液压大臂** —— 的简化训练 demo。
+把 LeRobot-MuJoCo-VLA-Tutorial（本仓库开发时的同级目录 `../Lerobot-MujoCo-VLA-Tutorial`）
+的 VLA 训练流程"移植"到一个不同的机械臂 —— **Uranus 液压大臂** —— 的完整 demo：
+**环境 → 专家 → 数据（含人手遥操作）→ 训练 → 评测 → VLA 微调准备**。
 
 Uranus 与教程里的 Open Manipulator Y（桌面小臂）差异很大：
 
@@ -11,12 +12,18 @@ Uranus 与教程里的 Open Manipulator Y（桌面小臂）差异很大：
 | 自由度 | 6 关节 + 4 夹爪关节 | 6 关节 + 2 个直驱夹爪关节 |
 | 传动 | 串联电机直驱 | 真机 joint2/3 为液压缸并联（本 demo 模型里已简化为串联位置伺服，见下） |
 | 关节空间 vs 执行器空间 | 相同（8 个执行器 = 8 关节） | 本 demo 模型同样是 8 执行器 = 8 关节；真机是 6 关节 ↔ 7 ctrl，需 `CylinderMapper` |
-| 任务复杂度 | 抓取 + 放置 + 开关柜门 | 先做"点到点到达"(reach)，现在已扩展到方块抓取-放置 |
+| 任务 | 抓取 + 放置 + 开关柜门 | **reach（点到点到达）已跑通**；**方块抓取-放置**环境+专家+数据管线已就绪，学出来的策略还不行（见下） |
 
-由于 Uranus 动作复杂度受限，本 demo 把任务降级为 **点对点到达**：
-给定一个红色目标点，机械臂 TCP 从 home 构型移动过去。专家策略用数值 IK 生成。
+## 三条链路各自到哪一步了
+
+| 链路 | 状态 |
+|---|---|
+| **reach**（点到点到达） | ✅ 全通：IK 专家采数据 → MLP 行为克隆 → 评测 **100/100** |
+| **抓取-放置**（轻量 npz + MLP） | ⚠️ 环境/专家/采集/训练/评测全部就绪，专家 **100%**；**学出来的策略只有 5%**（原因与后续方案见"仓库导览"一节） |
+| **抓取-放置 VLA**（图像+语言，π0/SmolVLA） | ✅ 数据管线就绪（LeRobotDataset 300 段 / 50700 帧）；⚠️ **微调受本机显存限制**，见 `VLA_FINETUNE.md` |
 
 ---
+
 
 ## 目录结构
 
@@ -24,7 +31,7 @@ Uranus 与教程里的 Open Manipulator Y（桌面小臂）差异很大：
 Lerobot-Uranus-VLA-Demo/
 ├── asset/
 │   ├── scene_uranus.xml                 # reach 场景：地面 + 目标点 + 机械臂 include
-│   ├── scene_uranus_grasp.xml           # 抓取场景：桌子 + 方块 + 放置点 + 相机
+│   ├── scene_uranus_grasp.xml           # 抓取场景：桌子 + 方块 + 放置点 + 相机 + 离屏渲染设置
 │   └── uranus/
 │       └── uranus_arm_gripper_model.xml # Uranus 简化模型（关节限位 + tcp_link + 齿面 geom）
 ├── uranus/
@@ -33,20 +40,31 @@ Lerobot-Uranus-VLA-Demo/
 │       └── cylinder_mapper.py           # 关节角 -> 液压缸 ctrl 映射（历史参考，真机用）
 ├── src/
 │   ├── env.py                           # UranusReachEnv（原生 mujoco，可无头运行）
-│   └── env_grasp.py                     # UranusGraspEnv：抓取/放置 + 齿面 IK + 夹爪标定
-├── configs/
-│   └── task.json                        # reach 任务配置
-├── collect_data.py                      # IK 专家采集示范 -> data/reach/data.npz
-├── train.py                             # torch MLP 行为克隆 -> ckpt/reach/policy.pt
-├── eval.py                              # rollout + 成功率
+│   ├── env_grasp.py                     # UranusGraspEnv：抓取/放置 + 齿面 IK + 夹爪标定
+│   └── expert_grasp.py                  # 抓取专家状态机 + 录制约定（动作/观测语义）
+├── configs/task.json                    # reach 任务配置
+├── collect_data.py / train.py / eval.py # reach 三件套
+├── collect_data_grasp.py                # 抓取：脚本专家采轻量 npz
+├── collect_data_vla.py                  # 抓取：脚本专家采 LeRobotDataset（图像+语言）
+├── manual_collect.py / run_manual.ps1   # 抓取：人手键盘遥操作采集（tkinter 界面）
+├── eval_grasp.py                        # 抓取：MLP 策略闭环评测
+├── eval_vla.py                          # 抓取：lerobot 策略（pi0/SmolVLA）闭环评测
+├── grasp_e2e.py                         # 抓取专家验证：python grasp_e2e.py --randomize 20
 ├── test_env.py                          # reach 环境冒烟测试
-├── grasp_e2e.py                         # 抓取-放置 端到端验证（PASS/FAIL）
-└── requirements.txt                     # 最小依赖
+├── debug/                               # 2026-09-11 那轮联调的 38 个脚本（索引见 debug/README.md）
+├── docs/                                # 验证截图
+├── VLA_FINETUNE.md                      # π0 / SmolVLA 硬件门槛、环境、微调命令
+└── requirements.txt                     # 依赖分三档：核心 / 遥操作 / VLA
 ```
 
-```
-# 抓取-放置 端到端验证（会打印每一步的物块/齿面位置，末尾给 PASS/FAIL）
-python grasp_e2e.py
+常用入口：
+
+```bash
+python test_env.py                        # reach 环境冒烟（ALL CHECKS PASSED）
+python grasp_e2e.py --randomize 20        # 抓取专家随机布局回归（100%）
+python run_manual.ps1                     # 人手遥操作采集（Windows）
+python collect_data_vla.py --episodes 300 # 生成 VLA 数据集（LeRobotDataset）
+python eval_grasp.py --num_episodes 20    # 评测抓取策略
 ```
 
 ## 快速开始
@@ -159,17 +177,20 @@ Final TCP-goal dist: mean=0.016, median=0.011
 
 ---
 
-## 如需接入完整 LeRobot / 图像 VLA
+## 接入完整 LeRobot / 图像 VLA：已经做了（数据），只差微调
 
-本 demo 刻意保持轻量（纯 numpy + torch），以便无 GPU、无遥操作设备也能跑通。
-若要完整对齐教程的图像 VLA（pi0.5 / GR00T），需要：
+本 demo 的 MLP 链路刻意保持轻量（纯 numpy + torch，无 GPU 也能跑）。图像 VLA 那条线已经落地：
 
-1. 用 `env.render()`（MuJoCo 离屏渲染）生成 RGB 图像；
-2. 把数据写入 `LeRobotDataset`（parquet + 图像）；
-3. 在 `configs/*.json` 中替换 `xml_file`、`control_mode`、关节名列表；
-4. 把 6 关节动作映射到 Uranus 的执行器（本 demo 模型是 8 个直驱执行器，真机则复用 `CylinderMapper`）。
+1. ✅ `collect_data_vla.py` 用 MuJoCo 离屏渲染出 **两路 RGB**（场景 + 腕部），写成标准
+   **LeRobotDataset**（parquet + 图像 + meta），带语言指令；
+2. ✅ 观测只给 7 维本体感知、**不给物块位姿**，逼策略真的看图；
+3. ✅ `eval_vla.py` 能加载 lerobot 策略在本环境闭环评测（判据与其它脚本统一）；
+4. ⚠️ **微调**：π0（3.3B）需要 ≥24GB 显存（官方是 8×A100），本机 8GB 干不了 ——
+   要么租云 GPU，要么先用 SmolVLA(450M)。硬件对照、环境安装、具体命令都在
+   **[`VLA_FINETUNE.md`](VLA_FINETUNE.md)**。
 
-详细迁移说明见教程目录下的 `uranus_migration_guide.md`。
+> 教程目录里的 `uranus_migration_guide.md` 记录了"把教程机器人换成 Uranus 要改哪些硬编码点"，
+> 本 demo 就是按那份指南落地的。
 
 ---
 
@@ -177,7 +198,8 @@ Final TCP-goal dist: mean=0.016, median=0.011
 
 在 reach 之上加了 `src/env_grasp.py` + `asset/scene_uranus_grasp.xml`：
 桌上放一个方块，`approach -> 下探 -> 闭爪 -> 抬升 -> 移到放置点 -> 下降 -> 缓开爪`。
-端到端验证脚本：`python grasp_e2e.py`（当前 5cm 方块：抬升 119mm、放置水平误差 3.2mm、PASS）。
+端到端验证脚本：`python grasp_e2e.py --randomize 20`（当前 **4cm** 方块：专家 20/20 = 100%，
+抬升 139mm、放置水平误差 1.2mm）。
 
 ### 场景几何（踩过的坑都写在 XML 注释里）
 
@@ -199,8 +221,8 @@ Final TCP-goal dist: mean=0.016, median=0.011
 | 边长 | 张开净间距 | 结果 |
 |---|---|---|
 | 3cm | 38.1mm | PASS（误差 5.6mm） |
-| 4cm | 48.1mm | PASS（4.6mm） |
-| **5cm（当前默认）** | 60.5mm | **PASS（3.2mm）** |
+| **4cm（当前默认）** | 48.1mm | **PASS（4.6mm）**；比 5cm 更容易"不碰到"：齿条 x 方向容差从 ±11mm 放宽到 ±16mm |
+| 5cm | 60.5mm | PASS（3.2mm） |
 | 6cm | 68.6mm | PASS（0.4mm） |
 | 7cm 及以上 | 78.9mm | FAIL —— 超出夹爪能力：张开净间距上限约 9.9cm（jaw 角 0.35），逼近极限时齿面在接近阶段就会把物块碰跑 |
 
@@ -218,7 +240,9 @@ eval_grasp.py              闭环 rollout + env.success() 成功率
 | 环节 | 现状 |
 |---|---|
 | 专家（随机 20~30 组布局） | **100% 成功**，抬升 139mm、放置水平误差 1.2mm（max 1.7mm） |
-| 采集 | 300 episodes / 45280 帧，专家成功率 100%，耗时 40s |
+| 采集（脚本专家，轻量 npz） | 200 段 / 33800 帧，专家成功率 100%，耗时 24s |
+| 采集（人手遥操作，轻量 npz） | 6 段 / 3453 帧（"在动"的帧占 53%，脚本专家只有 28%） |
+| 采集（VLA 图像格式） | 300 段 / 50700 帧 / 1.1GB，两路 224² 图像 + 语言，耗时 27 分钟 |
 | 数据格式 | obs 17 维、action 7 维，npz 三件套（observations / actions / episode_ends） |
 | 评测管线 | **用专家录下来的动作回放，能复现任务**（抬升 15cm、误差 2mm）→ 管线本身是忠实的 |
 | 学出来的策略 | **尚未成功**（0~5%）：能开到物块上方 2~3cm 并把夹爪合上，但抓不稳/抬不起来/放不到位 |
