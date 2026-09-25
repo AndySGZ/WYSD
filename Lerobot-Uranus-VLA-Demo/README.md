@@ -1,6 +1,6 @@
 # Lerobot-Uranus-VLA-Demo
 
-把 LeRobot-MuJoCo-VLA-Tutorial（本仓库开发时的同级目录 `../Lerobot-MujoCo-VLA-Tutorial`）
+把 LeRobot-MuJoCo-VLA-Tutorial（开发时位于 `E:\projects\mujoco\Lerobot-MujoCo-VLA-Tutorial`）
 的 VLA 训练流程"移植"到一个不同的机械臂 —— **Uranus 液压大臂** —— 的完整 demo：
 **环境 → 专家 → 数据（含人手遥操作）→ 训练 → 评测 → VLA 微调准备**。
 
