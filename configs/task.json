@@ -1,0 +1,18 @@
+{
+    "task_name": "uranus_reach",
+    "language_instruction": "move the end-effector to the red target point",
+    "xml_file": "./asset/scene_uranus.xml",
+    "arm_joints": ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"],
+    "tcp_body": "tcp_link",
+    "control_mode": "joint",
+    "goal": {
+        "r_range": [1.2, 1.75],
+        "theta_deg_range": [-80.0, 80.0],
+        "z_range": [0.20, 0.90]
+    },
+    "success_thresh": 0.15,
+    "gripper": {
+        "open": -0.2,
+        "close": 0.3
+    }
+}

@@ -1,0 +1,71 @@
+<mujoco model="uranus_grasp">
+  <compiler angle="radian"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10"/>
+
+  <visual>
+    <!-- 离屏渲染缓冲：要 >= 显示窗口尺寸，否则 mujoco.Renderer 直接报错 -->
+    <global offwidth="1280" offheight="800"/>
+    <!-- 环境光调亮一点，遥操作时更容易看清方块和夹爪 -->
+    <headlight ambient="0.45 0.45 0.45" diffuse="0.55 0.55 0.55" specular="0.1 0.1 0.1"/>
+    <quality shadowsize="2048"/>
+    <map znear="0.02" zfar="30"/>
+  </visual>
+
+  <worldbody>
+    <!-- 地面：下移 5cm，避免 Uranus 底座/连杆几何体穿入地面 -->
+    <geom name="floor" type="plane" size="4 4 0.05" pos="0 0 -0.05" rgba="0.80 0.82 0.86 1"/>
+    <light pos="3 3 4" dir="-3 -3 -4" diffuse="0.75 0.75 0.75"/>
+
+    <!-- 工作台：桌面(0.04m 厚)上表面位于 z=0.35，40cm x 44cm，位于臂前方 (x=1.72, y=-0.02)。
+         台面**近边必须留在 x=1.52**：Uranus 在桌面高度做抓取时整条臂几乎水平，肘/前臂
+         (link4/link5/link6)占住 x≈1.0~1.47、z≈0.29~0.35 这一段，台面再往回收就会
+         压住前臂（实测 link4_beam/link4_hub ↔ table_top 接触，齿面中点只能到 0.435）。
+         所以只能往"远处/两侧"加宽，不能往机器人方向加宽。
+         抓取姿态另见 src/env_grasp.py 的 GRASP_PITCH：齿条下俯 10°，
+         否则夹爪本体 link6_mount(半径 3cm)会顶在桌面上，手臂下不到物块中心。 -->
+    <body name="table" pos="1.72 -0.02 0">
+      <geom name="table_top" type="box" size="0.20 0.22 0.02" pos="0 0 0.33"
+            rgba="0.55 0.45 0.35 1" friction="0.6 0.02 0.001"/>
+      <geom name="table_pedestal" type="box" size="0.04 0.04 0.165" pos="0 0 0.165"
+            rgba="0.5 0.4 0.3 1" friction="0.6 0.02 0.001"/>
+    </body>
+
+    <!-- 待抓取物块：4cm 立方体，桌面高度 0.35 + 半高 0.02 = 0.37。
+         尺寸只写在这一个 geom 上（env 会自动读它标定夹爪的闭合角/张开角/齿面平行补偿）；
+         实测 3/4/5/6cm 都能稳定抓取，7cm 起超出夹爪张开能力（最大净间距约 9.9cm）。
+         4cm 比 5cm 更容易"不碰到"：齿条在 x 方向的容差从 ±11mm 变成 ±16mm。
+         换尺寸只需改这里 size、body pos 的 z 和 keyframe 前 3 维（z 同值）。 -->
+    <body name="object" pos="1.60 0.06 0.37">
+      <freejoint name="object_joint"/>
+      <!-- solref 调硬(2ms)：默认 20ms 的软接触在 kp=3000 的位置伺服下会被齿面压进去
+           近 2cm，齿的底面反而从上方把物块往桌面上按，夹不起来。 -->
+      <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.95 0.75 0.2 1" friction="0.6 0.02 0.001"/>
+    </body>
+
+    <!-- 放置目标标记（贴桌面的薄圆盘，纯视觉不参与碰撞）：与抓取点同一 x，臂只需沿 y 平移 -->
+    <body name="place_target" pos="1.60 -0.13 0.37">
+      <geom name="place_target_geom" type="cylinder" size="0.05 0.003" pos="0 0 -0.017"
+            rgba="0.2 0.5 0.95 1" contype="0" conaffinity="0"/>
+      <site name="place_target_site" size="0.01"/>
+    </body>
+
+    <!-- 俯视/侧视相机（后续图像 VLA 用） -->
+    <camera name="grasp_cam" pos="1.60 -1.0 1.0" xyaxes="1 0 0  0 0.5 0.866" fovy="50"/>
+  </worldbody>
+
+  <!-- Uranus 机械臂 -->
+  <include file="uranus/uranus_arm_gripper_model.xml"/>
+
+  <keyframe>
+    <!-- 前 7 维 = 物块 freejoint 初始位姿(1.60,0.06,0.37 + 单位四元数)；
+         后 8 维 = 臂(6) + 夹爪(2)，夹爪取张开角 0.22(见 src/env.py 的 GRIPPER_OPEN)。
+
+         臂的 home 取"预备位姿"：齿面中点悬在 (1.60, 0.02, 0.62) —— 桌面上方 24cm、
+         并且已经是抓取姿态（长轴沿 x、下俯 10°，与 solve_ik_grasp 的 R_des 一致）。
+         这样专家从 home 出发只需小范围平移+下探，不会在物块旁边做大角度转腕
+         （实测 home 若用臂的零位，转腕那一下会把物块扫飞，随机位姿下约 10% 失败）。 -->
+    <key name="home" qpos="1.60 0.06 0.37 1 0 0 0 0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

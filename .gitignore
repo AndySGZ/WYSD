@@ -1,0 +1,24 @@
+# 数据集 / 权重 / 日志：体积大且可复现，不进版本库
+#   data/grasp/   脚本专家轻量数据（3MB，几分钟可重录）→ 忽略
+#   data/reach/   同上 → 忽略
+#   data/grasp_vla/  VLA 数据集（1.1GB！）→ 必须忽略，GitHub 单文件上限 100MB
+#   ckpt/         训练产物（每个 0.8MB）→ 忽略
+# 注意 gitignore 的语义：不能"先排除目录再在里面放行文件"，
+# 所以这里用 data/* 只排除内容、不排除目录本身，才能把 data/manual 放回来。
+data/*
+!data/manual/
+!data/manual/**
+
+ckpt/
+outputs/
+*.log
+MUJOCO_LOG.TXT
+detach_test*
+
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 编辑器
+.vscode/
+.idea/

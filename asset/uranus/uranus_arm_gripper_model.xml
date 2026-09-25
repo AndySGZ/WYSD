@@ -1,0 +1,138 @@
+<mujoco model="uranus_arm_gripper_model_a">
+  <compiler angle="radian"/>
+
+  <!-- Model A: complete kinematic/dynamic structure with STL meshes replaced
+       by primitive geometry. Gripper simplified to a direct-drive 2-jaw design. -->
+  <option timestep="0.001" solver="Newton" iterations="100" tolerance="1e-12"
+          cone="elliptic" impratio="10">
+    <flag gravity="enable"/>
+  </option>
+
+  <worldbody>
+    <camera name="top_view" pos="0 0 0.8" xyaxes="0 -1 0  0 0 1" fovy="50"/>
+    <body name="base_link" pos="0 0 0">
+      <inertial pos="0.00022653 -8.6509e-12 0.017246" quat="1 0 0 0" mass="2.7072" diaginertia="0.0076487 0.0076027 0.014205"/>
+      <geom name="base_link_primitive" type="cylinder" size="0.09 0.02" rgba="0.89804 0.91765 0.92941 1"/>
+
+      <body name="link1" pos="0 0 0.021514">
+        <inertial pos="0.045493 -0.00030184 0.10957" quat="0.509921 0.489886 0.489726 0.51006" mass="22" diaginertia="0.1916 0.161437 0.138963"/>
+        <joint name="joint1" type="hinge" limited="true" range="-3.14 3.14" damping="3000" armature="1" frictionloss="50" pos="0 0 0" axis="0 0 1"/>
+        <geom name="link1_hub" type="cylinder" pos="0 0 0.06545" size="0.03 0.09089" rgba="0.89804 0.91765 0.92941 1"/>
+        <geom name="link1_beam" type="box" size="0.076525 0.02 0.04" pos="0.076525 0 0.14" rgba="0.89804 0.91765 0.92941 1"/>
+
+        <body name="link2" pos="0.15305 0 0.18178" quat="0.70710678 0.70710678 0 0">
+          <inertial pos="0.30213 0.30426 6.3402e-05" quat="0.647239 0.284761 -0.647233 0.284749" mass="24" diaginertia="1.403 1.38077 0.10333"/>
+          <joint name="joint2" type="hinge" limited="true" range="-1.527 -0.108" ref="-0.812224" damping="2000" armature="1" frictionloss="80" pos="0 0 0" axis="0 0 1"/>
+          <geom name="link2_hub" type="cylinder" size="0.07 0.015" rgba="0.89804 0.91765 0.92941 1"/>
+          <geom name="link2_beam" type="capsule" fromto="0 0 0 0.63529 0.60209 0" size="0.03" rgba="0.89804 0.91765 0.92941 1"/>
+
+          <body name="link3" pos="0.63529 0.60209 0">
+            <inertial pos="0.24045 -0.15902 0.00044845" quat="0.283173 0.64737 -0.285062 0.647661" mass="13" diaginertia="0.29 0.280416 0.0395839"/>
+            <joint name="joint3" type="hinge" limited="true" range="-2.857 -0.164" ref="-1.485888" damping="1500" armature="1" frictionloss="50" pos="0 0 0" axis="0 0 1"/>
+            <geom name="link3_hub" type="cylinder" size="0.07 0.015" rgba="0.89804 0.91765 0.92941 1"/>
+            <geom name="link3_beam" type="capsule" fromto="0 0 0 0.42294 -0.37646 -0.0022318" size="0.03" rgba="0.89804 0.91765 0.92941 1"/>
+
+            <body name="link4" pos="0.42294 -0.37646 -0.0022318">
+              <inertial pos="0.052755 0.00053808 0.00076395" quat="0.500656 0.499526 0.500109 0.499708" mass="9" diaginertia="0.0464 0.0441 0.0169"/>
+              <joint name="joint4" type="hinge" ref="0.726678" damping="1500" armature="1" frictionloss="20" pos="0 0 0" axis="0 0 1" limited="true" range="-2.0 2.0"/>
+              <geom name="link4_hub" type="cylinder" size="0.07 0.015" rgba="0.89804 0.91765 0.92941 1"/>
+              <geom name="link4_beam" type="capsule" fromto="0 0 0 0.12065 -7.62e-05 0" size="0.045" rgba="0.89804 0.91765 0.92941 1"/>
+
+              <body name="link5" pos="0.12065 -7.62e-05 0" quat="0.499998 0.5 0.5 -0.500002">
+                <inertial pos="0.0007351 0.093393 0.00070242" quat="0.526825 0.464754 0.477704 0.527502" mass="5.2" diaginertia="0.020302 0.015217 0.013781"/>
+                <joint type="hinge" limited="true" range="-1.5708 1.5708" damping="800" armature="1" frictionloss="15" name="joint5" pos="0 0 0" axis="0 0 -1"/>
+                <geom name="link5_hub" type="cylinder" size="0.06 0.015" rgba="0.89804 0.91765 0.92941 1"/>
+                <geom name="link5_beam" type="capsule" fromto="0 0 0 0 0.168 -0.033659" size="0.036" rgba="0.89804 0.91765 0.92941 1"/>
+
+                <body name="link6" pos="0 0.168 -0.033659" quat="-2.59734e-06 -2.59735e-06 0.707108 0.707105">
+                  <camera name="wrist_cam" pos="0 0.1 0.05" xyaxes="1 0 0 0 -1 0" fovy="60"/>
+                  <inertial pos="-6.1362e-05 -1.137e-05 0.0050252" quat="0.499873 0.500366 -0.499617 0.500144" mass="1.8289" diaginertia="0.0022148 0.0019893 0.0014508"/>
+                  <joint name="joint6" type="hinge" limited="true" range="-3.14 3.14" damping="300" armature="0.1" frictionloss="5" pos="0 0 0" axis="0 0 1"/>
+                  <geom name="link6_hub" type="cylinder" size="0.06 0.015" rgba="0.89804 0.91765 0.92941 1"/>
+                  <geom name="link6_mount" type="capsule" fromto="0 0 0 0 0 0.096835" size="0.03" rgba="0.89804 0.91765 0.92941 1"/>
+
+                  <body name="tcp_link" pos="0 0 0.105">
+                    <geom type="capsule" fromto="0 0 -0.02 0 0 0.02" size="0.008" rgba="1 0.2 0.2 0.5" contype="0" conaffinity="0"/>
+                  </body>
+
+                  <body name="jaw1.1" pos="0 -0.063665 0.051257" quat="-0.707105 0 0.707108 0">
+                    <inertial pos="0.0113615 0.00520096 -1.75914e-05" quat="0.409182 0.409474 0.576807 0.576364" mass="0.141315" diaginertia="6.71236e-05 3.92491e-05 3.46505e-05"/>
+                    <joint name="jaw1.1" type="hinge" damping="2" armature="0.01" pos="0 0 0" axis="0 0 -1" limited="true" range="-0.25 0.35"/>
+                    <geom name="jaw1_upper_pin" type="cylinder" size="0.012 0.004" rgba="0.898039 0.917647 0.929412 1" contype="0" conaffinity="0"/>
+                    <geom name="jaw1_upper_link" type="capsule" fromto="0 0 0 0.054095 0.018434 0" size="0.008" rgba="0.898039 0.917647 0.929412 1" contype="0" conaffinity="0"/>
+
+                    <body name="jaw1.1.1" pos="0.054095 0.018434 0" quat="0 -1 0 0">
+                      <inertial pos="0.0349789 -0.0215957 6.0096e-09" quat="0.553511 0.553511 0.440029 0.440029" mass="0.610989" diaginertia="0.000555616 0.000469289 0.000163674"/>
+                      <geom name="jaw1_pad_primitive" type="box" pos="0.04 -0.017 0" size="0.04 0.017 0.008" rgba="1 1 1 0.25" contype="0" conaffinity="0"/>
+                      <!-- 齿面改成橙色并去掉透明：原来 rgba 的 alpha=0（完全透明），
+                           遥操作时人根本看不见哪两片在夹东西（看到的大白块是旁边不参与碰撞的装饰垫）。 -->
+                      <geom name="jaw1_tooth_col" type="box" pos="0.0635 -0.0337 -0.00003" size="0.0364 0.0051 0.008" condim="4" friction="10 0.02 0.001" solref="0.002 1" rgba="1 0.45 0.05 1"/>
+                      <site name="hole_site_3" pos="0.00508 -0.027152 0" size="0.001" rgba="1 0 0 1"/>
+                      <site name="jaw1_a" pos="0.0075 -0.027 0" size="0.01" rgba="1 0 0 1"/>
+                    </body>
+                  </body>
+
+                  <body name="jaw2.1" pos="0 0.063665 0.051257" quat="0.707105 0 -0.707108 0">
+                    <inertial pos="0.0113614 -0.00520085 1.75948e-05" quat="0.576812 0.576359 0.409177 0.409479" mass="0.141315" diaginertia="6.71236e-05 3.92491e-05 3.46505e-05"/>
+                    <joint name="jaw2.1" type="hinge" damping="2" armature="0.01" pos="0 0 0" axis="0 0 1" limited="true" range="-0.25 0.35"/>
+                    <geom name="jaw2_upper_pin" type="cylinder" size="0.012 0.004" rgba="0.898039 0.917647 0.929412 1" contype="0" conaffinity="0"/>
+                    <geom name="jaw2_upper_link" type="capsule" fromto="0 0 0 0.054095 -0.018434 0" size="0.008" rgba="0.898039 0.917647 0.929412 1" contype="0" conaffinity="0"/>
+
+                    <body name="jaw2.1.1" pos="0.054095 -0.018434 0" quat="0 -1 0 0">
+                      <inertial pos="0.0378307 0.0233564 -6.41901e-09" quat="0.440029 0.440029 0.553511 0.553511" mass="0.56493" diaginertia="0.000545939 0.000468282 0.000153997"/>
+                      <geom name="jaw2_pad_primitive" type="box" pos="0.04 0.017 0" size="0.04 0.017 0.008" rgba="1 1 1 0.25" contype="0" conaffinity="0"/>
+                      <geom name="jaw2_tooth_col" type="box" pos="0.0635 0.0337 -0.00003" size="0.0364 0.0051 0.008" condim="4" friction="10 0.02 0.001" solref="0.002 1" rgba="1 0.45 0.05 1"/>
+                      <site name="hole_site_4" pos="0.00508 0.027152 0" size="0.001" rgba="1 0 0 1"/>
+                      <site name="jaw2_a" pos="0.0075 0.027 0" size="0.01" rgba="1 0 0 1"/>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+
+          <site name="hole_site_1" pos="0.33041 0.25666 0" size="0.005" rgba="1 0 0 1"/>
+          <site name="hole_site_2" pos="0.36645 0.29246 0" size="0.005" rgba="0 1 0 1"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="base_link" body2="link1"/>
+    <exclude body1="link2" body2="link3"/>
+    <exclude body1="link3" body2="link4"/>
+    <exclude body1="link4" body2="link5"/>
+    <exclude body1="link5" body2="link6"/>
+    <exclude body1="link6" body2="jaw1.1"/>
+    <exclude body1="link6" body2="jaw2.1"/>
+    <exclude body1="jaw1.1.1" body2="jaw1.1"/>
+    <exclude body1="jaw2.1.1" body2="jaw2.1"/>
+  </contact>
+
+  <actuator>
+    <!-- The real Uranus drives joint2/joint3 via two parallel hydraulic cylinders
+         (cylinder1/2_slide), mapped from joint angles by uranus/control/cylinder_mapper.py.
+         That parallel linkage (equality connect ball joints + very stiff cylinder
+         actuators) is numerically unstable under mj_step dynamics, so for this grasp
+         demo joint2/joint3 are driven directly as serial position actuators. FK/IK
+         is unaffected. High kp reduces gravity sag of the heavy links during tracking. -->
+    <position name="joint1_act" joint="joint1" kp="450000" kv="2750" ctrlrange="-3.14 3.14"/>
+    <position name="joint2_act" joint="joint2" kp="450000" kv="2750" ctrlrange="-1.527 -0.108"/>
+    <position name="joint3_act" joint="joint3" kp="450000" kv="2750" ctrlrange="-2.857 -0.164"/>
+    <position name="joint4_act" joint="joint4" kp="300000" kv="1100" ctrlrange="-2.18 1.78"/>
+    <position name="joint5_act" joint="joint5" kp="240000" kv="825" ctrlrange="-1.5708 1.5708"/>
+    <position name="joint6_act" joint="joint6" kp="90000" kv="550" ctrlrange="-3.14 3.14"/>
+    <!-- Gripper: 2-jaw direct-drive position control (the original tendon + 4-bar
+         linkage sags open at horizontal poses, so it was simplified). -->
+    <position name="jaw1.1_act" joint="jaw1.1" kp="3000" kv="50" ctrlrange="-0.25 0.35"/>
+    <position name="jaw2.1_act" joint="jaw2.1" kp="3000" kv="50" ctrlrange="-0.25 0.35"/>
+  </actuator>
+
+  <sensor>
+    <jointpos name="gripper_position" joint="jaw1.1"/>
+  </sensor>
+
+  <!-- NOTE: no built-in "home" keyframe here; each scene (scene_*.xml) defines its
+       own keyframe to keep qpos length matched (reach vs grasp freejoint). -->
+</mujoco>

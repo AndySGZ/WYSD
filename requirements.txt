@@ -1,0 +1,24 @@
+# 依赖说明
+#
+# ── 核心：reach / 抓取 / 手动遥操作 采集与训练评测都只需要这三个 ──────────────
+mujoco==3.2.1
+numpy
+torch==2.7.1
+
+# ── 手动遥操作界面（manual_collect.py）额外需要 ───────────────────────────────
+#   tkinter 是 Python 标准库，Windows 版 anaconda 自带，不用装
+pillow>=10        # 画 HUD / 把 MuJoCo 离屏渲染转成 tkinter 图像
+
+# ── VLA 路线（collect_data_vla.py / eval_vla.py）额外需要 ─────────────────────
+#   collect_data_vla.py 写 LeRobotDataset 需要 lerobot（含 pyarrow/av/datasets）：
+#     pip install "lerobot==0.4.3"
+#   跑 π0 / SmolVLA 的微调与评测还要（见 VLA_FINETUNE.md）：
+#     pip install "lerobot[smolvla]" "transformers>=4.57.1" "huggingface_hub>=0.34.2,<0.36.0"
+#     # π0 还需要一个 git 分支版 transformers：
+#     # pip install "transformers @ git+https://github.com/huggingface/transformers.git@fix/lerobot_openpi"
+#
+# 注意：本仓库自带的 conda 环境 lerobot_mujoco_vla_tutorial 里
+#   - torch 是 CPU 版（VLA 微调要 CUDA 版 torch）
+#   - 装了 lerobot 0.4.3 但 huggingface_hub 版本过旧 → lerobot.policies.factory 无法 import
+#   - 没装 transformers
+# 所以只能跑"核心 + 手动遥操作 + 写 LeRobotDataset"；VLA 微调/评测请另建环境。
