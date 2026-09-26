@@ -1,0 +1,31 @@
+<mujoco model="obstacle_grasp_o4">
+  <!-- O4 窄缝插取
+       难度轴：**毫米级精度** —— 目标夹在两堵墙之间，缝宽 6.5cm，而夹爪夹住 4cm 方块时
+       齿面外廓宽 5.5cm -> 每侧只剩 5mm 余量。下探时必须把 y 对准到 ±5mm 以内，
+       否则齿面撞墙（墙高 6cm，比方块顶还高 2cm，所以整个下探过程都受约束）。
+
+       缝宽是算过的：齿面中心距 ±2.25cm + 齿厚半 0.51cm = 外廓 ±2.76cm -> 5.52cm。
+       缝取 6.5cm -> 每侧 4.9mm。想更松/更紧就改 wall 的 pos.y 偏移。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <body name="object" pos="1.60 0.06 0.37">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.95 0.75 0.2 1" friction="0.6 0.02 0.001"/>
+    </body>
+
+    <!-- 两堵导墙（静态；位置随目标一起随机化，缝始终以目标为中心） -->
+    <body name="slot_wall" pos="1.60 0.06 0.38">
+      <geom name="slot_wall_yp" type="box" size="0.06 0.006 0.030" pos="0 0.0385 0"
+            mass="0.5" rgba="0.36 0.39 0.45 1" friction="0.6 0.02 0.001"/>
+      <geom name="slot_wall_yn" type="box" size="0.06 0.006 0.030" pos="0 -0.0385 0"
+            mass="0.5" rgba="0.36 0.39 0.45 1" friction="0.6 0.02 0.001"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.06 0.37 1 0 0 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

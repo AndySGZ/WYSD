@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+data/
+out/
+*.npz
+# shots/ 里的展示图是要进仓库的（拍摄展示就是交付物），不忽略

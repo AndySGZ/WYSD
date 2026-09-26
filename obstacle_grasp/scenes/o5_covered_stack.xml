@@ -1,0 +1,30 @@
+<mujoco model="obstacle_grasp_o5">
+  <!-- O5 覆盖堆叠（先搬开上面那块）
+       难度轴：**长程 + 顺序** —— 目标被另一块方块压住，直接抓目标会连覆盖块一起带起来。
+       必须先抓走覆盖块放到台面一侧，再抓目标放到圆盘上。
+
+       判据沿用底座 success（目标落到圆盘），所以"必须先搬开"不是靠额外判据硬编，
+       而是任务本身的物理约束：不搬开就抓不到目标。
+       覆盖块用与目标**不同颜色**，便于人/策略区分。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <body name="object" pos="1.60 0.06 0.37">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.95 0.75 0.2 1" friction="0.6 0.02 0.001"/>
+    </body>
+
+    <!-- 覆盖块：正压在目标上（目标顶 0.39 -> 覆盖块中心 0.41） -->
+    <body name="cover" pos="1.60 0.06 0.4105">
+      <freejoint name="cover_joint"/>
+      <geom name="cover_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.55 0.45 0.78 1" friction="0.6 0.02 0.001"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.06 0.37 1 0 0 0 1.60 0.06 0.4105 1 0 0 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

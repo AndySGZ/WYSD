@@ -1,0 +1,50 @@
+<mujoco model="obstacle_grasp_base">
+  <!-- ===================================================================
+       障碍抓取族的公共底座：工作台 + Uranus 机械臂（**不做水下渲染**）。
+
+       几何与 asset/scene_uranus_grasp.xml **完全一致**（桌面 z=0.35、近边 x=1.52、
+       台面 40x44cm、物块 4cm）：这套工作区是拿血换来的 —— Uranus 在桌面高度抓取时
+       整条臂几乎水平，台面往机器人方向加宽会压住前臂（实测 link4_beam ↔ table_top
+       接触，齿面中点只能到 0.435）。所以只加障碍物，不动工作区。
+
+       qpos 顺序（已实测）：[joint1..joint6, jaw1.1, jaw2.1] 在前，各级道具的 freejoint
+       按声明顺序跟在后面。所以每级 keyframe 必须写满整串。
+
+       相机：top_view / wrist_cam 由机械臂模型自带，这里只补 grasp_cam。
+       =================================================================== -->
+  <compiler angle="radian"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10"/>
+
+  <visual>
+    <global offwidth="1280" offheight="800"/>
+    <headlight ambient="0.45 0.45 0.45" diffuse="0.55 0.55 0.55" specular="0.1 0.1 0.1"/>
+    <quality shadowsize="2048"/>
+    <map znear="0.02" zfar="30"/>
+  </visual>
+
+  <worldbody>
+    <!-- 地面往下 5cm，避免底座/连杆穿地 -->
+    <geom name="floor" type="plane" size="4 4 0.05" pos="0 0 -0.05" rgba="0.80 0.82 0.86 1"/>
+    <light pos="3 3 4" dir="-3 -3 -4" diffuse="0.75 0.75 0.75"/>
+
+    <!-- 工作台：上表面 z=0.35 -->
+    <body name="table" pos="1.72 -0.02 0">
+      <geom name="table_top" type="box" size="0.20 0.22 0.02" pos="0 0 0.33"
+            rgba="0.55 0.45 0.35 1" friction="0.6 0.02 0.001"/>
+      <geom name="table_pedestal" type="box" size="0.04 0.04 0.165" pos="0 0 0.165"
+            rgba="0.5 0.4 0.3 1" friction="0.6 0.02 0.001"/>
+    </body>
+
+    <!-- 目标放置标记（贴台面的薄圆盘，纯视觉不参与碰撞） -->
+    <body name="place_target" pos="1.60 -0.13 0.37">
+      <geom name="place_target_geom" type="cylinder" size="0.05 0.003" pos="0 0 -0.017"
+            rgba="0.2 0.5 0.95 1" contype="0" conaffinity="0"/>
+      <site name="place_target_site" size="0.01"/>
+    </body>
+
+    <camera name="grasp_cam" pos="1.60 -1.0 1.0" xyaxes="1 0 0  0 0.5 0.866" fovy="50"/>
+  </worldbody>
+
+  <!-- 相对路径按**主文件**（各级场景，同在 scenes/ 下）所在目录解析 -->
+  <include file="../../Lerobot-Uranus-VLA-Demo/asset/uranus/uranus_arm_gripper_model.xml"/>
+</mujoco>

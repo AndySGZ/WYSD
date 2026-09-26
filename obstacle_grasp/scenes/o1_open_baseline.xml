@@ -1,0 +1,19 @@
+<mujoco model="obstacle_grasp_o1">
+  <!-- O1 开阔基线（无障碍）
+       难度轴：基线。作为对照组 —— O2~O5 相对它的成功率差就是"障碍的代价"。
+       任务：把 4cm 方块抓到蓝色圆盘上（判据沿用底座 UranusGraspEnv.success）。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <body name="object" pos="1.60 0.06 0.37">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.95 0.75 0.2 1" friction="0.6 0.02 0.001"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.06 0.37 1 0 0 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>
