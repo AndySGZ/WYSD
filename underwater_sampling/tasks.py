@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """采样任务族：分级规格注册表（**单一真值表**）。
 
 设计原则（见 `WYSD/Lerobot-Uranus-VLA-Demo/docs/underwater_vla_task_design.md`）：
@@ -18,7 +18,11 @@
     hold_s       采集器要求判据连续成立多久才算完成
     force_limit  接触力上限（N），只有需要力约束的等级才有
     instructions 训练用指令池；holdout 只评测不训练
-    water        建议水况（能见度旋钮；对齐 underwater_vision 预设）
+    criterion    成功判据的文字说明（§3.2 模板要求；实现在 success/settled 里）
+    water        采集用的水况建议（underwater_vision 预设名）。
+                 **七级统一取 coastal**：水况是"正交的第二维"，若每级用水况不同，
+                 跨级比较就被水况混淆了（等于一次动两个变量）。能见度扫描请作为**独立的
+                 评测轴**做：固定某一级，扫 clear/coastal/turbid/harbor，得成功率–能见度曲线。
     notes        实现要点/坑
 """
 from __future__ import annotations
@@ -251,12 +255,83 @@ def settled_l7(env) -> bool:
 
 
 # ----------------------------------------------------------------------
+# L8 杠杆阀门（族 B · 工业干预）
+# ----------------------------------------------------------------------
+# 阀门手柄的几何：本体原点 = 握把中心，铰链在本地 +x 0.055m（阀杆轴线）。
+# 所以"阀门开度"就是 object_joint 这条 hinge 的角；握把位置 = 铰链 + R_z(q)·(握把-铰链)。
+L8_PIVOT = np.array([1.72, 0.0, 0.50])   # 铰链（阀杆轴线）位置
+L8_KNOB_R = 0.055                        # 握把中心到铰链的距离
+L8_OPEN = np.deg2rad(60.0)               # 开到位 = 手柄抬起（铰链限位 ±75°）
+L8_CLOSED = -np.deg2rad(60.0)            # 关到位 = 手柄压下
+
+_L8_INSTR = {
+    "open": ["把阀门打开", "扳动手柄把阀门开到最大", "把阀门手柄扳到开启位置"],
+    "close": ["把阀门关闭", "扳动手柄把阀门关到底", "把阀门手柄扳回关闭位置"],
+}
+_L8_HOLDOUT = {"open": ["让这个阀门通起来"], "close": ["把这个阀门切断"]}
+
+
+def l8_knob_pos(q: float) -> np.ndarray:
+    """给定阀门开度 q(rad)，返回握把中心的三维位置。
+
+    手柄绕**水平 y 轴**摆动，所以握把在 x-z 平面里画弧：
+        q=0 水平（握把在铰链的 -x 侧）；q=+60° 抬起（开）；q=-60° 压下（关）。
+    换成 y 轴的原因是实测出来的：夹爪沿 y 合拢，若铰链是竖直 z 轴，
+    夹持力会产生 τ=F_y·r_x 的扭矩（实测把起始 -45° 的阀门夹到 -93°），
+    而绕 y 轴时该扭矩分量恒为 0，夹紧不扰动初始状态。详见场景 XML 的注释。
+    """
+    return np.array([L8_PIVOT[0] - L8_KNOB_R * float(np.cos(q)),
+                     L8_PIVOT[1],
+                     L8_PIVOT[2] + L8_KNOB_R * float(np.sin(q))])
+
+
+def layout_l8(rng):
+    """起始角取水平位（0°±8°），指令决定往"开"（抬起）还是往"关"（压下）扳。
+
+    **起始取中间是有意的**：无论从"开"还是"关"起步，反方向那条指令都无事可做，
+    "同初始状态、只换指令"的方向词消融就做不成了（设计文档 §6.1 第 3 项）。
+    """
+    q0 = float(np.deg2rad(rng.uniform(-8.0, 8.0)))
+    to_open = bool(rng.random() < 0.5)
+    target = float(L8_OPEN if to_open else L8_CLOSED)
+    seen = bool(rng.random() < 0.75)
+    pool = (_L8_INSTR if seen else _L8_HOLDOUT)["open" if to_open else "close"]
+    # 目标标记用**三维**位置：绕 y 轴转动时开位/关位的 (x,y) 相同、只差 z，
+    # 放在地面上的标记根本区分不出"开"和"关"。
+    pos = l8_knob_pos(target)
+    return {"joints": {"object_joint": q0},
+            "start_angle": q0, "target_angle": target, "to_open": to_open,
+            "statics": {"place_target": [float(pos[0]), float(pos[1]), float(pos[2])]},
+            "instruction": str(rng.choice(pool)),
+            "instruction_split": "seen" if seen else "holdout"}
+
+
+def success_l8(env) -> bool:
+    """把手柄扳到指令要求的一端：开度到目标 5° 以内 + 相对起始至少转了 25°。
+
+    方向由 target 相对 start 的符号决定，所以"扳反了"必然失败 —— 这正是方向词能被检验的地方。
+    """
+    q = env.joint_angle("object_joint")
+    q0, tgt = env.layout["start_angle"], env.layout["target_angle"]
+    travel = q - q0
+    toward = np.sign(tgt - q0)
+    return bool(abs(q - tgt) < np.deg2rad(8.0) and travel * toward > np.deg2rad(25.0))
+
+
+def settled_l8(env) -> bool:
+    """手柄停住了：角度到位且角速度很小（不是还在被推着/回弹）。"""
+    return bool(abs(env.joint_angle("object_joint") - env.layout["target_angle"])
+                < np.deg2rad(6.0) and abs(env.joint_vel("object_joint")) < 0.35)
+
+
+# ----------------------------------------------------------------------
 # 注册表
 # ----------------------------------------------------------------------
 LEVELS = {
     "l1_rock_collect": dict(
-        order=1, title="L1 抓取取样", xml="scenes/l1_rock_collect.xml",
+        order=1, family="A", title="L1 抓取取样", xml="scenes/l1_rock_collect.xml",
         difficulty="基线：高对比目标（黄岩）+ 窄随机范围",
+        criterion="岩石落进托盘（水平 <45mm、落在盘底附近）+ 夹爪张开",
         object_desc="4cm 立方体岩石（亮黄，对比最强）",
         goal_desc="采样托盘（内净 12.5cm、三面壁 2.5cm、朝机器人一侧开口）",
         sample_layout=layout_l1,
@@ -268,8 +343,9 @@ LEVELS = {
         notes="唯一能与现有 pick-place 基线（300 段/50700 帧）对齐的等级；先用它把采集链路跑通。",
     ),
     "l2_gray_rock_random": dict(
-        order=2, title="L2 弱纹理 + 随机位姿", xml="scenes/l2_gray_rock_random.xml",
+        order=2, family="A", title="L2 弱纹理 + 随机位姿", xml="scenes/l2_gray_rock_random.xml",
         difficulty="目标外观低对比（灰岩 vs 沉积物底色）+ 初始位姿范围扩大",
+        criterion="同 L1（几何完全一致，只有配色与随机范围变了）",
         object_desc="4cm 立方体岩石（灰色，与底质同色系）",
         goal_desc="采样托盘（同 L1）",
         sample_layout=layout_l2,
@@ -277,13 +353,14 @@ LEVELS = {
         settled=_basket_settled, hold_s=0.4,
         instructions=["把灰色岩石放进采样篮", "捡起这块岩石放进采样篮", "采集这块岩石"],
         holdout=["把这块灰岩收进采样篮"],
-        water="turbid",
+        water="coastal",
         notes="几何与 L1 完全一致，**只改配色与随机范围** —— 与 L1 的差值就是"
               "「定位变难」的代价，是干净的消融对照。",
     ),
     "l3_two_rocks_language": dict(
-        order=3, title="L3 双目标 + 语言指称", xml="scenes/l3_two_rocks_language.xml",
+        order=3, family="A", title="L3 双目标 + 语言指称", xml="scenes/l3_two_rocks_language.xml",
         difficulty="语言指称 + 干扰项（两块同色岩石，靠立柱参照区分）",
+        criterion="指令指定的那块进托盘 + 干扰项位移 <10mm + 夹爪张开",
         object_desc="两块外观完全相同的灰色岩石（A 挨着立柱 / B 在空地）",
         goal_desc="采样托盘（同 L1，在两块岩石之外）",
         sample_layout=layout_l3, success=success_l3, settled=settled_l3, hold_s=0.4,
@@ -294,8 +371,9 @@ LEVELS = {
               "（设计文档 §4 + 评测矩阵第 3 项）。采集时同场景不同指令 -> 数据里天然含语言-行为配对。",
     ),
     "l4_fragile_coral": dict(
-        order=4, title="L4 易碎珊瑚轻取", xml="scenes/l4_fragile_coral.xml",
+        order=4, family="A", title="L4 易碎珊瑚轻取", xml="scenes/l4_fragile_coral.xml",
         difficulty="窄目标（3cm）+ 软垫落点 + 不得翻倒/摔落",
+        criterion="珊瑚进托盘 + 未翻倒（本体 z 轴偏离竖直 <25°）+ 夹爪张开",
         object_desc="3x3x4cm 珊瑚碎块（比 L1/L2 的 4cm 方岩更窄，夹持窗口更小）",
         goal_desc="采样托盘（同 L1）+ 软垫",
         sample_layout=layout_l4, success=success_l4, settled=_basket_settled, hold_s=0.4,
@@ -307,8 +385,9 @@ LEVELS = {
               "metrics 里，等给夹爪加了模拟量控制再启用。",
     ),
     "l5_push_core": dict(
-        order=5, title="L5 推芯采样（插管坐底）", xml="scenes/l5_push_core.xml",
+        order=5, family="A", title="L5 推芯采样（插管坐底）", xml="scenes/l5_push_core.xml",
         difficulty="工具夹持 + 竖直搬运 + 精密插入（管底坐底 + 管轴竖直 + 横向偏心）",
+        criterion="管心到坐底位 <8mm（同时管住深度与横向偏心）+ 管轴偏离竖直 <8°",
         object_desc="采样管（圆柱 r=2cm、长 15cm，竖直站立，底部对准井底）",
         goal_desc="取样座（方形导向井，内净 8x8cm、壁高 5cm）",
         sample_layout=layout_l5, success=success_l5, settled=settled_l5, hold_s=1.0,
@@ -320,20 +399,22 @@ LEVELS = {
               "比「插进软泥」靠软接触近似要干脆得多。",
     ),
     "l6_probe_touch": dict(
-        order=6, title="L6 探针点测", xml="scenes/l6_probe_touch.xml",
+        order=6, family="A", title="L6 探针点测", xml="scenes/l6_probe_touch.xml",
         difficulty="mm 级对准 + 接触力上限 + 长保持（2s）",
+        criterion="针尖距测点 <8mm + 接触力 <12N（压过头即失败）",
         object_desc="探针（手柄 r=2cm + 细针尖，平放、针尖朝 +x）",
         goal_desc="管壁测点（远处立块 -x 面上，高 0.40m）",
         sample_layout=layout_l6, success=success_l6, hold_s=2.0,
         force_limit=12.0, tol={"tip": 0.008},
         instructions=["把探针顶到测点上", "用探针接触标记测点", "把探针尖对准测点并保持"],
         holdout=["让探针抵住管壁的标记点"],
-        water="turbid",
+        water="coastal",
         notes="力上限防「压过头」：保持 2s 期间力必须一直低于阈值，所以是「贴着但不顶着」。",
     ),
     "l7_tool_roundtrip": dict(
-        order=7, title="L7 长程：取工具 -> 点测 -> 归位", xml="scenes/l7_tool_roundtrip.xml",
+        order=7, family="A", title="L7 长程：取工具 -> 点测 -> 归位", xml="scenes/l7_tool_roundtrip.xml",
         difficulty="多里程碑长程 + 归位（L6 全部内容，外加必须把探针放回工具架）",
+        criterion="三段里程碑全过：拿起过探针 → 点测达标 → 回托板静置 + 夹爪张开",
         object_desc="探针（同 L6）",
         goal_desc="管壁测点 + 工具托板",
         sample_layout=layout_l7, success=success_l7, settled=settled_l7, hold_s=1.5,
@@ -344,6 +425,31 @@ LEVELS = {
         water="coastal",
         notes="考顺序与归位（设计文档 S6 的最小可判版本）。里程碑由 env.observe() 逐拍累计："
               "离开沉积物面 -> 点测保持达标 -> 回架静置。",
+    ),
+    "l8_valve_lever": dict(
+        order=8, family="B", title="L8 杠杆阀门（干预）", xml="scenes/l8_valve_lever.xml",
+        criterion="阀门开度到指令要求那一端 <8° + 相对起始至少转 25°，方向必须对",
+        difficulty="接触丰富 + 持续施力 + **方向词**（同初始状态换指令必须反向）",
+        object_desc="阀门手柄握把（r=2cm 竖直圆柱，绕水平 y 轴铰接）",
+        goal_desc="阀门另一端（抬起=开 / 压下=关，空中有目标位置指示球）",
+        sample_layout=layout_l8, success=success_l8, settled=settled_l8, hold_s=1.0,
+        tol={"angle_deg": 8.0, "travel_deg": 25.0},
+        instructions=_L8_INSTR["open"] + _L8_INSTR["close"],
+        holdout=_L8_HOLDOUT["open"] + _L8_HOLDOUT["close"],
+        water="coastal",
+        notes="⚠ **状态：设计完成、尚未通过可操作性验证，暂不要用它采数据。** "
+              "已实测确认的三件事：① 铰链 range 必须写弧度（本模型 angle=radian）；"
+              "② 手柄臂不能和齿面同层（绕 z 轴时臂会扫进齿间，卡死在 -66.7°）；"
+              "③ **不能用夹爪去抓手柄** —— 夹持力会产生扭矩：绕 z 轴时 τ=F_y·r_x≈78N·m；"
+              "即使改成绕 y 轴（该轴扭矩分量为 0），align_jaws 让齿面法向偏 z 约 5.4°，"
+              "1224N 的夹持力仍有 115N 的 z 分量 -> 6.3N·m，实测把 0° 的阀门夹成 -42.5°。"
+              "结论：这个任务必须是**推**而不是夹，且推的姿态要「张开夹爪 + y 向偏置让单齿去推」"
+              "（闭合夹爪的两齿间距 1.3cm < 手柄臂厚 1.4cm，会直接夹住手柄臂）。"
+              "下一步：标定推的姿态（待推位 + 沿弧切向的退让量），再跑双向验证。"
+              "本包第一个非抓放任务，也是唯一判据为**关节角**的等级。"
+              "起始取中间位置是为了让开/关两条指令都非平凡 -> 方向词消融（同初始状态只换指令）"
+              "能给出最强证据：策略若对开/关给出同样动作，语言分支没被用上就无可辩驳。"
+              "难度旋钮 = 起始角范围、目标角（行程）、能见度。frictionloss 实测**不是**可用旋钮：2000N 夹持力带来的摩擦扭矩比它大两个数量级。",
     ),
 }
 

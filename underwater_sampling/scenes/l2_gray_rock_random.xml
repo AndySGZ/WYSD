@@ -10,20 +10,20 @@
     <body name="object" pos="1.60 0.06 0.37">
       <freejoint name="object_joint"/>
       <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
-            solref="0.002 1" rgba="0.43 0.42 0.39 1" friction="0.7 0.02 0.001"/>
+            solref="0.002 1" rgba="0.60 0.57 0.52 1" friction="0.7 0.02 0.001"/>
     </body>
 
     <!-- 托盘几何与 L1 一致（内净 12cm、三面壁 2.5cm、软底、近侧开口）：壁再高、或补上近侧壁，link6_mount 就会啃壁，人手放不进去。详见 l1_rock_collect.xml 的注释。 -->
     <body name="place_target" pos="1.60 -0.11 0.35">
       <geom name="tray_floor" type="box" size="0.065 0.065 0.005" pos="0 0 0.005"
-            solref="0.02 1" rgba="0.50 0.48 0.30 1" friction="0.9 0.02 0.001"/>
+            solref="0.02 1" rgba="0.68 0.65 0.42 1" friction="0.9 0.02 0.001"/>
       <geom name="tray_wall_xp" type="box" size="0.005 0.07 0.0125" pos="0.0675 0 0.0225"
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
       <geom name="tray_wall_yp" type="box" size="0.065 0.005 0.0125" pos="0 0.0675 0.0225"
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
       <geom name="tray_wall_yn" type="box" size="0.065 0.005 0.0125" pos="0 -0.0675 0.0225"
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
       <site name="place_target_site" pos="0 0 0.030" size="0.01"/>
     </body>
   </worldbody>

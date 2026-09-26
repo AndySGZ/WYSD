@@ -130,6 +130,10 @@ class SamplingEnv(UranusGraspEnv):
 
         self._ready = True
         self.rng = np.random.default_rng(seed)
+        # 被操作物是铰接件（如 L8 阀门手柄）而不是自由体时，metrics 里多报一个关节角
+        oj = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, self.OBJECT_JOINT)
+        self.object_is_hinge = bool(
+            oj >= 0 and self.model.jnt_type[oj] == mujoco.mjtJoint.mjJNT_HINGE)
         self.reset()
 
     # ------------------------------------------------------------------
@@ -230,12 +234,32 @@ class SamplingEnv(UranusGraspEnv):
         for name, pose in (layout.get("props") or {}).items():
             adr = self.prop_adr[name]
             self.data.qpos[adr:adr + 7] = np.asarray(pose, dtype=float)
+        # 具名铰链/滑移关节（如 L8 的阀门开度）：直接写 qpos
+        for name, val in (layout.get("joints") or {}).items():
+            self.data.qpos[self.joint_adr(name)] = float(val)
         for name, pos in (layout.get("statics") or {}).items():
             self.model.body_pos[self.body_id(name)] = np.asarray(pos, dtype=float)
         if layout.get("goal_xy") is not None:
             gx, gy = layout["goal_xy"]
             self.model.body_pos[self.place_body_id] = np.array([gx, gy, SURFACE_Z])
         mujoco.mj_forward(self.model, self.data)
+
+    def joint_adr(self, name: str) -> int:
+        jid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
+        if jid < 0:
+            raise KeyError(f"场景里没有 joint {name!r}（等级 {self.level_name}）")
+        return int(self.model.jnt_qposadr[jid])
+
+    def joint_angle(self, name: str = "object_joint") -> float:
+        """读一个单自由度关节的角度（rad）。L8 用它当阀门开度。"""
+        return float(self.data.qpos[self.joint_adr(name)])
+
+    def joint_vel(self, name: str = "object_joint") -> float:
+        """读一个单自由度关节的角速度（rad/s）。"""
+        jid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
+        if jid < 0:
+            raise KeyError(f"场景里没有 joint {name!r}")
+        return float(self.data.qvel[int(self.model.jnt_dofadr[jid])])
 
     def reset(self, layout: dict | None = None, **kwargs):
         mujoco.mj_resetDataKeyframe(self.model, self.data, self.home_key_id)
@@ -334,6 +358,12 @@ class SamplingEnv(UranusGraspEnv):
         if self.tip_site >= 0:
             m["tip_site_dist_mm"] = round(
                 float(np.linalg.norm(self.probe_tip_pos() - self.get_place_target())) * 1000.0, 1)
+        if self.object_is_hinge:
+            m["valve_deg"] = round(float(np.degrees(self.joint_angle())), 1)
+            m["valve_target_deg"] = round(
+                float(np.degrees(self.layout.get("target_angle", 0.0))), 1)
+            m["valve_start_deg"] = round(
+                float(np.degrees(self.layout.get("start_angle", 0.0))), 1)
         return m
 
     def info(self) -> dict:

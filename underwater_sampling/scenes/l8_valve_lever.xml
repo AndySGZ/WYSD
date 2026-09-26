@@ -1,0 +1,65 @@
+<mujoco model="underwater_sampling_l8">
+  <!-- L8 杠杆阀门（族 B · 工业干预）—— 本包第一个"接触丰富 + 需要持续施力"的任务，
+       也是第一条**方向词**能被严格检验的指令（同初始状态、换指令 -> 动作必须反向）。
+
+       【为什么铰链轴必须是水平 y 轴】这是实测撞出来的，不是随手选的：
+       夹爪沿 y 合拢，握把中心相对铰链有 x 偏移时，夹持力会产生扭矩 τ = F_y·r_x。
+       最初做成"绕竖直 z 轴"的阀门（像球阀手柄），2000N 的夹持力 × 0.039m ≈ 78 N·m，
+       比阀门摩擦(0.6 N·m)大两个数量级 —— **夹住手柄那一下就把阀门打到限位了**
+       （实测起始 -45° 夹紧后变 -93°），"同初始状态只换指令"的方向词消融直接不成立。
+       绕 y 轴时夹持力 ∥ 铰链轴 -> τ 在该轴上的分量恒等于 0 -> 夹紧完全不扰动初始状态。
+       附带好处：手柄臂始终待在 x-z 平面内（y 向厚度 ±7mm），而两片齿在 y=±22.5mm，
+       所以手柄怎么转都不会扫进齿间（绕 z 轴时正是这一点把手柄卡死在 -66.7°）。
+
+       【几何约定】本体原点 = 握把中心（= 被操作物 object），铰链用 joint 的 pos
+       偏到本地 +x 0.055m（阀杆轴线）。于是：
+         -> env.get_object_pos() 返回握把位置（obs 有信息量）
+         -> qpos 里那条 hinge 的角就是阀门开度（判据直接读它，不用解四元数）
+         -> 握把是 r=2cm 的竖直圆柱（夹持宽度 4cm，圆柱天然满足 x/y 延展相等）
+       q=+60° 手柄抬起（开），q=-60° 手柄压下（关），起始取 0°（水平）
+       —— 两边行程各 60°，所以"开/关"两条指令都非平凡。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <!-- 阀体 + 阀杆（静态）：阀杆是沿 y 的水平轴 -->
+    <body name="valve_body" pos="1.72 0.00 0.35">
+      <geom name="valve_base" type="box" size="0.035 0.045 0.012" pos="0 0 0.012"
+            rgba="0.42 0.46 0.50 1" friction="0.8 0.02 0.001"/>
+      <geom name="valve_post" type="box" size="0.012 0.015 0.063" pos="0 0 0.075"
+            rgba="0.50 0.54 0.58 1" friction="0.8 0.02 0.001"/>
+      <geom name="valve_shaft" type="cylinder" size="0.010 0.028" pos="0 0 0.150"
+            quat="0.70710678 0.70710678 0 0"
+            rgba="0.66 0.70 0.74 1" friction="0.8 0.02 0.001"/>
+    </body>
+
+    <!-- 阀门手柄：绕水平 y 轴铰接。
+         frictionloss 0.6 N·m > 重力扭矩(0.25kg×9.81×0.055 ≈ 0.135 N·m)，
+         所以松手后手柄停在原地不回弹（真实阀门也有填料摩擦），settled 判据才有意义。
+         range 是**弧度**（本模型 <compiler angle="radian"/>）：±1.31 rad = ±75°。 -->
+    <body name="object" pos="1.665 0.00 0.50">
+      <joint name="object_joint" type="hinge" axis="0 1 0" pos="0.055 0 0"
+             range="-1.31 1.31" limited="true" damping="2.0" frictionloss="0.60"
+             armature="0.010" solreflimit="0.002 1"/>
+      <geom name="object_geom" type="cylinder" size="0.02 0.018" mass="0.15"
+            solref="0.002 1" rgba="0.90 0.72 0.28 1" friction="0.8 0.02 0.001"/>
+      <geom name="lever_arm" type="box" size="0.0275 0.007 0.007" pos="0.0275 0 0" mass="0.10"
+            rgba="0.72 0.74 0.78 1" friction="0.8 0.02 0.001"/>
+      <site name="valve_knob_site" pos="0 0 0" size="0.006"/>
+    </body>
+
+    <!-- 目标位置指示球（纯视觉，不参与碰撞）：标出"手柄应当转到哪里"。
+         env 按指令把它摆到开位/关位对应的握把三维位置 —— 因为绕 y 轴转动时
+         开位和关位的 (x,y) 相同（只差 z），所以只能用三维位置区分，不能放在地面上。 -->
+    <body name="place_target" pos="1.6925 0.00 0.5476">
+      <geom name="goal_marker" type="sphere" size="0.011"
+            rgba="0.95 0.35 0.25 1" contype="0" conaffinity="0"/>
+      <site name="place_target_site" pos="0 0 0" size="0.008"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <!-- 前 8 维 = 臂(6)+夹爪(2)；第 9 维 = 阀门铰链角（0=水平起始） -->
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 0.0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

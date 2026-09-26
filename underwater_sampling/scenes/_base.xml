@@ -28,15 +28,15 @@
 
   <worldbody>
     <!-- 海床：比抓取场景的地面暗、低饱和，给"低对比度"留出余量 -->
-    <geom name="floor" type="plane" size="4 4 0.05" pos="0 0 -0.05" rgba="0.26 0.27 0.24 1"/>
+    <geom name="floor" type="plane" size="4 4 0.05" pos="0 0 -0.05" rgba="0.42 0.44 0.40 1"/>
     <light pos="3 3 4" dir="-3 -3 -4" diffuse="0.70 0.70 0.68"/>
 
     <!-- 沉积物工作台（等价于抓取场景里的"桌面"） -->
     <body name="seabed" pos="1.72 -0.02 0">
       <geom name="seabed_top" type="box" size="0.20 0.22 0.02" pos="0 0 0.33"
-            rgba="0.36 0.35 0.31 1" friction="0.7 0.02 0.001"/>
+            rgba="0.58 0.55 0.48 1" friction="0.7 0.02 0.001"/>
       <geom name="seabed_pedestal" type="box" size="0.04 0.04 0.165" pos="0 0 0.165"
-            rgba="0.31 0.30 0.26 1" friction="0.7 0.02 0.001"/>
+            rgba="0.48 0.46 0.40 1" friction="0.7 0.02 0.001"/>
     </body>
 
     <!-- 俯视/侧视相机（策略输入视角） -->

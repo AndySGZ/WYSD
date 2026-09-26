@@ -18,16 +18,16 @@
          垫子也顺带把落体的冲击吃掉。静置中心 = 盘底顶面(0.010) + 垫厚(0.008) + 珊瑚半高(0.020)。 -->
     <body name="place_target" pos="1.60 -0.11 0.35">
       <geom name="tray_floor" type="box" size="0.065 0.065 0.005" pos="0 0 0.005"
-            solref="0.02 1" rgba="0.50 0.48 0.30 1" friction="0.9 0.02 0.001"/>
+            solref="0.02 1" rgba="0.68 0.65 0.42 1" friction="0.9 0.02 0.001"/>
       <geom name="tray_wall_xp" type="box" size="0.005 0.07 0.0125" pos="0.0675 0 0.0225"
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
       <geom name="tray_wall_yp" type="box" size="0.065 0.005 0.0125" pos="0 0.0675 0.0225"
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
       <geom name="tray_wall_yn" type="box" size="0.065 0.005 0.0125" pos="0 -0.0675 0.0225"
-            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.60 0.57 0.36 1" friction="0.9 0.02 0.001"/>
       <geom name="tray_pad" type="box" size="0.06 0.06 0.004" pos="0 0 0.014"
-            solref="0.04 1" rgba="0.30 0.34 0.28 1" friction="0.9 0.02 0.001"/>
+            solref="0.04 1" rgba="0.38 0.44 0.36 1" friction="0.9 0.02 0.001"/>
       <site name="place_target_site" pos="0 0 0.038" size="0.01"/>
     </body>
   </worldbody>

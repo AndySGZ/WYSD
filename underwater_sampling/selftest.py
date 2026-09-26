@@ -62,7 +62,9 @@ def _props_of(env):
 
 def check_load(rep: Report, level: str, env: SamplingEnv) -> None:
     m = env.model
-    rep.check(f"{level} 场景加载", m.nq >= 15 and m.nkey == 1,
+    # nq 下限取 8（臂 6 + 夹爪 2）：像 L8 这种被操作物是铰接件而不是自由体的等级，
+    # 没有 freejoint，nq 就是 9，不能拿"必须 >= 15"去卡。
+    rep.check(f"{level} 场景加载", m.nq >= 8 and m.nkey == 1,
               f"nq={m.nq} nv={m.nv} nkey={m.nkey}")
     need = ["object", "object_joint", "object_geom", "place_target", "place_target_site"]
     missing = [n for n in need
@@ -103,9 +105,12 @@ def check_randomization(rep: Report, level: str, env: SamplingEnv, n: int = 50) 
             for j in range(i + 1, len(pts)):
                 worst["min_pair"] = min(worst["min_pair"],
                                         float(np.linalg.norm(pts[i][1][:2] - pts[j][1][:2])))
-        gx, gy = lay["goal_xy"]
-        for _, p in pts:
-            worst["obj_goal"] = min(worst["obj_goal"], float(np.hypot(p[0] - gx, p[1] - gy)))
+        # 有的等级没有 goal_xy（例如 L8 的目标是三维位置，走 statics 而不是地面标记）
+        if lay.get("goal_xy") is not None:
+            gx, gy = lay["goal_xy"]
+            for _, p in pts:
+                worst["obj_goal"] = min(worst["obj_goal"],
+                                        float(np.hypot(p[0] - gx, p[1] - gy)))
     rep.check(f"{level} 道具都在沉积物面之上", worst["on_surface"] > -1e-6,
               f"最低余量 {worst['on_surface'] * 1000:.1f}mm")
     rep.check(f"{level} 道具都在台面范围内", worst["in_slab"] > 0.01,

@@ -47,9 +47,6 @@ class UranusGraspEnv(UranusReachEnv):
     # 手臂下不到物块中心（实测停在物块中心上方 1cm 处顶住）；
     # 10° 可把腕部抬到桌面上方，齿的前下角也仍有 ~6mm 余量。
     GRASP_PITCH = np.deg2rad(10.0)
-    # 腕部姿态的另两个自由度（默认 0 = 与旧版写死的姿态逐位一致，见 grasp_rot）。
-    GRASP_ROLL = 0.0
-    GRASP_YAW = 0.0
 
     # 随机化范围（台面 x∈[1.52,1.92]、y∈[-0.24,0.20]，都留出物块半径 + 1cm 余量）
     # x 上限受"夹爪本体不能让开台面近边"约束：齿面中点在 x 时，link6_mount 会扫到
@@ -258,33 +255,8 @@ class UranusGraspEnv(UranusReachEnv):
         v = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]]) / (2.0 * np.sin(th))
         return th * v
 
-    @classmethod
-    def grasp_rot(cls, pitch: float | None = None, roll: float = 0.0,
-                  yaw: float = 0.0) -> np.ndarray:
-        """齿面本体坐标系的期望世界姿态：``R_z(yaw) @ R_y(pitch) @ R_x(roll)``。
-
-        三个角是腕部自由度（遥操作里用方向键 / z,x 控制）：
-          - pitch 绕 y：齿条长轴俯仰（默认 GRASP_PITCH=10°，抬起腕部让开台面）；
-          - roll  绕 x：齿条绕自身长轴滚转 -> 改变两齿面的开合方向；
-          - yaw   绕 z：齿条长轴在水平面内偏转 -> 从不同方向接近目标。
-
-        ``(roll=0, pitch=GRASP_PITCH, yaw=0)`` 时本式退化成旧版写死的
-        ``[[c,0,s],[0,1,0],[-s,0,c]]``，**逐位一致** —— 所以老脚本/专家行为完全不变。
-        """
-        p = cls.GRASP_PITCH if pitch is None else float(pitch)
-        r, y = float(roll), float(yaw)
-        cr, sr = np.cos(r), np.sin(r)
-        cp, sp = np.cos(p), np.sin(p)
-        cy, sy = np.cos(y), np.sin(y)
-        Rx = np.array([[1.0, 0.0, 0.0], [0.0, cr, -sr], [0.0, sr, cr]])
-        Ry = np.array([[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]])
-        Rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
-        return Rz @ Ry @ Rx
-
     def solve_ik_grasp(self, target_pos: np.ndarray, q0=None, max_iter=500, tol=1e-3,
-                       pitch: float | None = None, restore_state: bool = True,
-                       roll: float | None = None, yaw: float | None = None,
-                       R_des: np.ndarray | None = None):
+                       pitch: float | None = None, restore_state: bool = True):
         """把"齿面中点"移动到 target_pos，同时把夹爪姿态摆正的 6 自由度 IK。
 
         只用位置 IK(3 DOF)时，齿条的长轴会随腕部俯仰倾斜 ~28°，导致齿的端面而不是
@@ -306,11 +278,8 @@ class UranusGraspEnv(UranusReachEnv):
             q0 = self.q_home
         q = np.asarray(q0, dtype=float).copy()
         saved_qpos = self.data.qpos.copy() if restore_state else None
-        if R_des is None:
-            R_des = self.grasp_rot(pitch, 0.0 if roll is None else roll,
-                                   0.0 if yaw is None else yaw)
-        else:
-            R_des = np.asarray(R_des, dtype=float).reshape(3, 3)
+        c, s = float(np.cos(pitch)), float(np.sin(pitch))
+        R_des = np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
         jacp1 = np.zeros((3, self.model.nv))
         jacp2 = np.zeros((3, self.model.nv))
         jacp_b = np.zeros((3, self.model.nv))

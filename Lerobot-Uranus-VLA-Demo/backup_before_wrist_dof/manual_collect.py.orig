@@ -61,29 +61,8 @@ KEYMAP = {
     "q": (2, +1.0), "e": (2, -1.0),     # ±z
 }
 
-# 腕部姿态键（2026-09 新增，3 个自由度）。方向键 + z/x，和移动键一样"按住连续转"。
-# 限位是**实测**出来的（低抓取位 z=0.37 与阀门高度 z=0.52 两处解 IK、残差 <5mm 才算可达）：
-#   roll  绕齿条长轴：±180° 全程 0.0mm —— 腕部本来就有这个自由度，不用限
-#   pitch 俯仰：低抓取位 -59°~+75°，阀门高度上限 +60°  -> 取保守 [-50°, +55°]
-#   yaw   水平偏转：低抓取位 -59°~+90°，阀门高度上限 +85° -> 取保守 [-50°, +75°]
-# 超出限位不会崩：IK 把关节 clip 住、齿面中点跟不上目标，HUD 上的"IK 残差"会涨起来。
-WRIST_KEYS = {
-    "up": (1, +1.0), "down": (1, -1.0),      # pitch ±
-    "left": (2, +1.0), "right": (2, -1.0),   # yaw ±
-    "z": (0, +1.0), "x": (0, -1.0),          # roll ±
-}
-WRIST_LIMITS = (
-    (-3.141592653589793, 3.141592653589793),          # roll
-    (float(np.deg2rad(-50.0)), float(np.deg2rad(55.0))),   # pitch
-    (float(np.deg2rad(-50.0)), float(np.deg2rad(75.0))),   # yaw
-)
-
 
 # 齿面中点允许活动的范围（别让遥操作把手臂开进桌面/开出工作空间）
-# 腕部默认姿态 = 底座 solve_ik_grasp 的默认姿态（pitch=GRASP_PITCH, roll=yaw=0）。
-# 所以不碰腕部键时，遥操作行为与加这个功能之前**完全一致**。
-WRIST_DEFAULT = np.array([0.0, float(UranusGraspEnv.GRASP_PITCH), 0.0])
-
 LIMITS = {
     "x": (1.42, 1.80),
     "y": (-0.26, 0.22),
@@ -95,10 +74,6 @@ KEYHELP = """\
   W/S   齿面中点沿 +x / -x（远离 / 靠近机器人底座）
   A/D   沿 +y / -y（左 / 右）
   Q/E   沿 +z / -z（升 / 降）
-  ↑/↓   腕部俯仰（齿条长轴抬头 / 低头）
-  ←/→   腕部偏航（齿条长轴在水平面内左右转）
-  Z/X   腕部滚转（绕齿条长轴滚 -> 换两齿面开合方向；手轮类任务的关键自由度）
-  G     腕部姿态回中（回到默认抓取姿态）
   Space 夹爪开 / 合
   T     重来：同一组布局，臂回预备位姿、本段录制清空
   R     换一组新布局（丢弃当前录制）
@@ -222,9 +197,6 @@ class TeleopCollector:
         self.last_press = {}          # 按键 -> 时间戳（松开事件丢失时的兜底）
         self.toggle_debounce = {}     # 按键 -> 时间戳（避免按键重复把开关抖成乱码）
         self.speed = args.speed
-        self.wrist_rate = float(getattr(args, "wrist_rate", 0.8))   # rad/s
-        self.wrist = WRIST_DEFAULT.copy()
-        self.ik_resid = 0.0          # 齿面中点 IK 残差（涨起来 = 姿态超出可达范围）
 
         self.obs_list, self.act_list, self.ep_ends = [], [], []
         self.stream = []
@@ -241,10 +213,6 @@ class TeleopCollector:
     # ------------------------------------------------------------------
     # 输入
     # ------------------------------------------------------------------
-    def reset_wrist(self):
-        """腕部回到默认抓取姿态（每段开始时都复位，保证初始状态可复现）。"""
-        self.wrist = WRIST_DEFAULT.copy()
-
     def _press_ok(self, keycode, dt=0.35):
         """同一个键在 dt 秒内的重复事件忽略（按住不放时系统会连发按键重复）。"""
         now = time.time()
@@ -273,12 +241,9 @@ class TeleopCollector:
         if not key:
             return
         low = key.lower()
-        if low in self.keymap or low in WRIST_KEYS:
+        if low in self.keymap:
             self.last_press[low] = time.time()
             self.held.add(low)
-        elif low == "g" and self._press_ok("g"):
-            self.reset_wrist()
-            self.message = "腕部姿态回中"
         elif low == "space" and self._press_ok("space"):
             self.gripper_open = not self.gripper_open
             self.message = f"夹爪{'张开' if self.gripper_open else '合上'}"
@@ -319,15 +284,6 @@ class TeleopCollector:
             self.p_target[1] = np.clip(self.p_target[1], *LIMITS["y"])
             self.p_target[2] = np.clip(self.p_target[2], *LIMITS["z"])
 
-        # 腕部姿态：同样"按住连续转"，各自限位（实测可达范围，见 WRIST_LIMITS）
-        wstep = np.zeros(3)
-        for key, (axis, sign) in WRIST_KEYS.items():
-            if key in self.held or now - self.last_press.get(key, -9.0) < self.args.hold:
-                wstep[axis] += sign
-        if np.any(wstep):
-            self.wrist = np.clip(self.wrist + wstep * self.wrist_rate * dt,
-                                 [w[0] for w in WRIST_LIMITS], [w[1] for w in WRIST_LIMITS])
-
     # ------------------------------------------------------------------
     # 一个控制周期
     # ------------------------------------------------------------------
@@ -338,10 +294,7 @@ class TeleopCollector:
         if getattr(self, "_prev_p", None) is not None:         # 统计本段工具走了多远（自查用）
             self.ep_travel += float(np.linalg.norm(p - self._prev_p))
         self._prev_p = p.copy()
-        q, err = env.solve_ik_grasp(p, q0=env.get_joints(), max_iter=self.args.ik_iters,
-                                    roll=float(self.wrist[0]), pitch=float(self.wrist[1]),
-                                    yaw=float(self.wrist[2]))
-        self.ik_resid = float(np.linalg.norm(err))
+        q, _ = env.solve_ik_grasp(p, q0=env.get_joints(), max_iter=self.args.ik_iters)
         # 夹爪：闭合可以快（对称夹住），张开必须限速——瞬开会把物块弹飞（专家脚本里实测 17cm）。
         # 限速后"慢慢张开"这段斜坡会像专家数据一样被录进 action，策略学得到。
         want = float(env._grip_ctrl(self.gripper_open)[0])
@@ -374,7 +327,6 @@ class TeleopCollector:
         self.last_layout = (obj_pose, place)
         self.env.reset(object_pose=obj_pose)
         self.env.place_on_table(place)
-        self.reset_wrist()
         self.p_target = self.env.tooth_midpoint().copy()
         self.home_target = self.p_target.copy()
         self.gripper_open = True
@@ -550,11 +502,7 @@ class TeleopCollector:
             f"已保存 {self.saved_episodes}/{self.args.episodes} 段   累计 {len(self.obs_list)} 帧   "
             f"速度 {self.speed:.2f} m/s   夹爪 {'张开' if self.gripper_open else '合上'}",
             f"工具点 x={self.p_target[0]:.3f}  y={self.p_target[1]:.3f}  z={self.p_target[2]:.3f}    {tip}",
-            f"腕部 roll={np.rad2deg(self.wrist[0]):+.0f}°  pitch={np.rad2deg(self.wrist[1]):+.0f}°  "
-            f"yaw={np.rad2deg(self.wrist[2]):+.0f}°   IK残差 {self.ik_resid * 1000:.1f}mm"
-            + ("  ⚠超可达范围" if self.ik_resid > 0.01 else ""),
-            "W/S 前后  A/D 左右  Q/E 升降  空格 夹爪  [ ] 调速",
-            "↑/↓ 俯仰  ←/→ 偏航  Z/X 滚转  G 腕部回中",
+            "W/S 前后    A/D 左右    Q/E 升降    空格 夹爪     [ ] 调速",
             "T 重来(同布局)    R 换新布局    Enter 保存本段    Backspace 放弃    Esc 退出",
             "鼠标：左键拖动转视角，右键拖动平移，滚轮缩放",
         ]
@@ -650,8 +598,6 @@ def main():
     parser.add_argument("--lookahead", type=int, default=DEFAULT_LOOKAHEAD,
                         help="动作取未来第几拍（要与专家数据的约定一致）")
     parser.add_argument("--speed", type=float, default=0.12, help="齿面中点移动速度 m/s")
-    parser.add_argument("--wrist_rate", type=float, default=0.8,
-                        help="腕部姿态转动速度 rad/s（方向键 / z,x）")
     parser.add_argument("--hold", type=float, default=0.12,
                         help="松开按键后仍继续运动多久（防止松开事件丢失导致不动，别设太大）")
     parser.add_argument("--ik_iters", type=int, default=12, help="每拍做几步齿面中点 IK")
