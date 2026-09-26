@@ -6,18 +6,16 @@
 
 ## 放在哪 / 怎么 import
 
-本模组在 `AndySGZ/WYSD` 仓库里位于**仓库根目录**：`WYSD/underwater_vision/`。
-开发时它也可能被放在仓库外（`E:/projects/mujoco/underwater_vision`），两种位置都支持：
+本模组在 `AndySGZ/WYSD` 仓库里位于**仓库根目录**：`WYSD/underwater_vision/` —— **唯一来源**
+（开发时曾在仓库外 `E:/projects/mujoco/underwater_vision`，2026-09 已合并回来并删除旧副本）。
 
 ```powershell
-# 仓库内（推荐，单一来源）
-$env:PYTHONPATH = "E:\projects\mujoco\WYSD"
-# 仓库外
-$env:PYTHONPATH = "E:\projects\mujoco"
+$env:PYTHONPATH = "E:\projects\mujoco\WYSD"       # 仓库根目录即可 import
 ```
 
-`paths.py` 会从本文件所在目录**向上逐层探测** `Lerobot-Uranus-VLA-Demo`，所以两种放法都能
-自动找到 UranUS 场景；也可以用环境变量 `UNDERWATER_VISION_DEMO_DIR` 直接指定。
+`paths.py` 会从本文件所在目录**向上逐层探测** `Lerobot-Uranus-VLA-Demo`，所以万一以后又被
+放到别的位置也能自动找到 UranUS 场景；也可以用环境变量 `UNDERWATER_VISION_DEMO_DIR`
+直接指定 demo 仓库路径。
 
 ## 最短用法（两行）
 
@@ -69,8 +67,8 @@ underwater_vision/
 ```
 
 依赖：**numpy 必需**；渲染部分需要 **mujoco**；`demo.py` / `save_png` / JPEG 伪影需要 **PIL**。
-本仓库的 `mujoco-env` venv 里三者都有；`指南.md` 已把 `E:\projects\mujoco` 加进 `PYTHONPATH`，
-所以任何脚本都能直接 `import underwater_vision`。
+本仓库的 `mujoco-env` venv 里三者都有；`指南.md` 已把 `E:\projects\mujoco\WYSD`（含
+`E:\projects\mujoco`）加进 `PYTHONPATH`，所以任何脚本都能直接 `import underwater_vision`。
 
 ## 成像模型
 
