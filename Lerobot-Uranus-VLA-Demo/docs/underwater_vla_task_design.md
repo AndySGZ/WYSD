@@ -371,6 +371,7 @@ data/underwater/
 | 3 | `asset/scene_uranus_underwater_grasp.xml` | **新增**（未做） | L0 海床场景 + 探照灯 `<light>`；`<visual>` 块可直接用 `underwater_vision.xml_visual_snippet()` 生成（**雾参数在 mujoco≥3.8 无效**，别指望它） |
 | 4 | `collect_data_vla.py` | 改（未做） | 用 `WaterRenderer` 替换 `mujoco.Renderer`；`grab_images()` 里两行变 `renderer.render(env.data, camera=cam)` 一行；把 `params.to_json()` 写进 dataset 旁边 |
 | 5 | `eval_vla.py` | 改（未做） | `ObsBuilder` 里 `WaterRenderer.wrap(self.renderer, params=WaterParams.from_json(...))`；加 `--instruction` / `--water_json`；结果写 JSON |
+| 6 | `WYSD/underwater_sampling/`（`tasks/env/manual/selftest` + 7 个场景 XML） | ✅ **已完成** | 族 A 采样任务的**分级场景包**（L1~L7，每级只加一个难度轴），自动判据 + 语言指令池 + 人手操作入口（注入 underwater_vision 的水下视图）。**按需求不含专家策略**；"人力可解"由 117 项场景自检保证（IK 可达 + 摆位咬入 + 物理静置 + 随机化不变量）。实测出的机械臂操作包线写在它的 `README.md` 里（腕部姿态固定、`link6_mount` 下缘低于齿面中点 1.5cm → 容器必须朝机器人开口、二值夹爪使力阈值判据不可用） |
 | 6 | `src/env_grasp.py` 或新 `src/env_underwater.py` | 新增/扩展 | 新任务的 `success()` / 目标采样 / 扬尘状态 |
 | 7 | `src/expert_valve.py` / `expert_probe.py` / `expert_hotstab.py` | **新增** | 反应式里程碑专家（复用 `expert_grasp.py` 的 `build_frames` 与 `move_to`） |
 | 8 | `collect_data_underwater.py` | **新增** | 多任务采集入口（任务名 → 场景/env/专家/指令池 分派） |

@@ -1,0 +1,52 @@
+﻿<mujoco model="underwater_sampling_l3">
+  <!-- L3 双目标 + 语言指称
+       难度轴：场景里有两块同色岩石，靠**语言指令**决定抓哪一块（靠位置/参照物区分，
+               两块本身外观完全一样）。干扰项被移动即判失败 —— 这是"语言分支到底有没有
+               被用上"的最小可判实验（设计文档 §4 + 评测矩阵第 3 项）。
+
+       参照物：立柱（marker_post）紧挨 A 岩，B 岩在空地。
+       指令样例："把立柱旁边的岩石放进采样篮" / "把空地上那块岩石放进采样篮"。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <!-- A 岩：立柱旁边那块 -->
+    <body name="object" pos="1.60 0.10 0.37">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.43 0.42 0.39 1" friction="0.7 0.02 0.001"/>
+    </body>
+
+    <!-- B 岩：空地上那块（干扰项） -->
+    <body name="object2" pos="1.60 -0.06 0.37">
+      <freejoint name="object2_joint"/>
+      <geom name="object2_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.43 0.42 0.39 1" friction="0.7 0.02 0.001"/>
+    </body>
+
+    <!-- 参照物立柱（静态，纯视觉+可碰撞；给语言指称一个锚点） -->
+    <body name="marker_post" pos="1.60 0.155 0.35">
+      <geom name="marker_post_geom" type="cylinder" size="0.006 0.045" pos="0 0 0.045"
+            rgba="0.62 0.30 0.24 1" friction="0.7 0.02 0.001"/>
+    </body>
+
+    <!-- 托盘几何与 L1 一致（内净 12cm、三面壁 2.5cm、软底、近侧开口）：补上近侧壁 link6_mount 就会啃壁。 -->
+    <body name="place_target" pos="1.60 -0.15 0.35">
+      <geom name="tray_floor" type="box" size="0.065 0.065 0.005" pos="0 0 0.005"
+            solref="0.02 1" rgba="0.50 0.48 0.30 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_xp" type="box" size="0.005 0.07 0.0125" pos="0.0675 0 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_yp" type="box" size="0.065 0.005 0.0125" pos="0 0.0675 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_yn" type="box" size="0.065 0.005 0.0125" pos="0 -0.0675 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <site name="place_target_site" pos="0 0 0.030" size="0.01"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <!-- arm8 + A 岩 7 + B 岩 7（freejoint 按声明顺序） -->
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.10 0.37 1 0 0 0 1.60 -0.06 0.37 1 0 0 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

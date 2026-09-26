@@ -1,0 +1,35 @@
+﻿<mujoco model="underwater_sampling_l2">
+  <!-- L2 弱纹理 + 随机位姿
+       难度轴：目标外观低对比（灰色岩石 vs 沉积物底色）+ 初始位姿范围扩大。
+       几何/判据与 L1 完全相同，只换配色；随机范围在 tasks.py 里配。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <!-- 灰岩：配色刻意贴近沉积物底色（0.36 0.35 0.31），边缘对比极弱。
+         注意 x/y 尺寸必须相等：夹爪沿 y 合拢，而 env 用 geom_size[0](x 半宽) 标定夹持宽度。 -->
+    <body name="object" pos="1.60 0.06 0.37">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.43 0.42 0.39 1" friction="0.7 0.02 0.001"/>
+    </body>
+
+    <!-- 托盘几何与 L1 一致（内净 12cm、三面壁 2.5cm、软底、近侧开口）：壁再高、或补上近侧壁，link6_mount 就会啃壁，人手放不进去。详见 l1_rock_collect.xml 的注释。 -->
+    <body name="place_target" pos="1.60 -0.11 0.35">
+      <geom name="tray_floor" type="box" size="0.065 0.065 0.005" pos="0 0 0.005"
+            solref="0.02 1" rgba="0.50 0.48 0.30 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_xp" type="box" size="0.005 0.07 0.0125" pos="0.0675 0 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_yp" type="box" size="0.065 0.005 0.0125" pos="0 0.0675 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_yn" type="box" size="0.065 0.005 0.0125" pos="0 -0.0675 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <site name="place_target_site" pos="0 0 0.030" size="0.01"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.06 0.37 1 0 0 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

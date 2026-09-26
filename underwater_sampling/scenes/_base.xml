@@ -1,0 +1,48 @@
+<mujoco model="underwater_sampling_base">
+  <!-- ===================================================================
+       采样任务族的公共底座：海床工作区 + Uranus 机械臂。
+       各级场景用 <include file="_base.xml"/> 引用它，再追加自己的道具。
+
+       几何**刻意与 asset/scene_uranus_grasp.xml 的桌面完全一致**
+       （上表面 z=0.35、近边 x=1.52、台面 40x44cm）：Uranus 在台面高度抓取时整条臂
+       几乎水平，台面往机器人方向加宽会压住前臂（实测 link4_beam ↔ table_top 接触，
+       齿面中点只能到 0.435）。只换外观（沉积物配色），不动尺寸，IK/伺服/夹爪标定全部继续有效。
+
+       qpos 顺序（已实测）：[joint1..joint6, jaw1.1, jaw2.1] 在前，各级道具的 freejoint
+       按声明顺序跟在后面。所以每级 keyframe 必须写满整串，只写 8 个机械臂值会被
+       错误解释成道具位姿（不报错，静默出错）。
+
+       相机：top_view / wrist_cam 由机械臂模型自带（见 uranus_arm_gripper_model.xml），
+       这里只补 grasp_cam。
+       =================================================================== -->
+  <compiler angle="radian"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10"/>
+
+  <visual>
+    <!-- 离屏渲染缓冲：要 >= 显示窗口尺寸，否则 mujoco.Renderer 直接报错 -->
+    <global offwidth="1280" offheight="800"/>
+    <headlight ambient="0.45 0.45 0.45" diffuse="0.55 0.55 0.55" specular="0.1 0.1 0.1"/>
+    <quality shadowsize="2048"/>
+    <map znear="0.02" zfar="30"/>
+  </visual>
+
+  <worldbody>
+    <!-- 海床：比抓取场景的地面暗、低饱和，给"低对比度"留出余量 -->
+    <geom name="floor" type="plane" size="4 4 0.05" pos="0 0 -0.05" rgba="0.26 0.27 0.24 1"/>
+    <light pos="3 3 4" dir="-3 -3 -4" diffuse="0.70 0.70 0.68"/>
+
+    <!-- 沉积物工作台（等价于抓取场景里的"桌面"） -->
+    <body name="seabed" pos="1.72 -0.02 0">
+      <geom name="seabed_top" type="box" size="0.20 0.22 0.02" pos="0 0 0.33"
+            rgba="0.36 0.35 0.31 1" friction="0.7 0.02 0.001"/>
+      <geom name="seabed_pedestal" type="box" size="0.04 0.04 0.165" pos="0 0 0.165"
+            rgba="0.31 0.30 0.26 1" friction="0.7 0.02 0.001"/>
+    </body>
+
+    <!-- 俯视/侧视相机（策略输入视角） -->
+    <camera name="grasp_cam" pos="1.60 -1.0 1.0" xyaxes="1 0 0  0 0.5 0.866" fovy="50"/>
+  </worldbody>
+
+  <!-- 相对路径按**主文件**（各级场景，同在 scenes/ 下）所在目录解析，所以是往上两级到 WYSD/ -->
+  <include file="../../Lerobot-Uranus-VLA-Demo/asset/uranus/uranus_arm_gripper_model.xml"/>
+</mujoco>

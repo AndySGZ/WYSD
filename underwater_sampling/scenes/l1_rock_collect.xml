@@ -1,0 +1,43 @@
+﻿<mujoco model="underwater_sampling_l1">
+  <!-- L1 抓取取样（最易）
+       难度轴：基线。把现有 pick-place 搬到采样语义：目标从"蓝色圆盘"变成"采样篮"。
+       操作：抓岩石 -> 抬 -> 平移到篮口上方 -> 下放 -> 松爪。
+       判据：岩石落在篮内、低于篮沿、夹爪张开。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <!-- 目标物：4cm 立方体岩石。尺寸只写在这一个 geom 上 —— env 读它标定夹爪的
+         闭合角/张开角/齿面平行补偿，换尺寸只需改这里 size 和 keyframe 的 z。
+         solref 调硬(2ms)：默认 20ms 软接触在 kp=3000 的位置伺服下会被齿面压进去近 2cm。 -->
+    <body name="object" pos="1.60 0.06 0.37">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="box" size="0.02 0.02 0.02" mass="0.1"
+            solref="0.002 1" rgba="0.86 0.66 0.24 1" friction="0.7 0.02 0.001"/>
+    </body>
+
+    <!-- 采样托盘（沿用底座的 place_target 命名：env 把 body_pos 摆到随机位置，
+         place_target_site 就是"样本应当落到的中心" = 盘底顶面 + 物块半高）。
+         **内净 12cm、三面壁 2.5cm、**朝机器人一侧开口****：实测 link6_mount 这个 geom 很大，齿面中点
+         进托盘后要到 z=0.415 才让开 5cm 高的壁（0.375~0.410 全程啃 basket_wall_xn），
+         所以高壁容器人手根本放不进去。浅盘 + solref 软底（吸收落体不弹飞）是本机械臂上
+         唯一可行的人工作业形式。齿面中点最高只能到 ~0.415，样本从盘口上方落下 ~4cm。 -->
+    <body name="place_target" pos="1.60 -0.11 0.35">
+      <geom name="tray_floor" type="box" size="0.065 0.065 0.005" pos="0 0 0.005"
+            solref="0.02 1" rgba="0.50 0.48 0.30 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_xp" type="box" size="0.005 0.07 0.0125" pos="0.0675 0 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_yp" type="box" size="0.065 0.005 0.0125" pos="0 0.0675 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <geom name="tray_wall_yn" type="box" size="0.065 0.005 0.0125" pos="0 -0.0675 0.0225"
+            rgba="0.44 0.42 0.27 1" friction="0.9 0.02 0.001"/>
+      <site name="place_target_site" pos="0 0 0.030" size="0.01"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <!-- 前 8 维 = 臂(6) + 夹爪(2)，取张开角 0.22；后 7 维 = 岩石 freejoint 初始位姿 -->
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.06 0.37 1 0 0 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

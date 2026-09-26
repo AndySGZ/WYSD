@@ -1,0 +1,43 @@
+<mujoco model="underwater_sampling_l5">
+  <!-- L5 推芯采样（插管坐底）
+       难度轴：**工具夹持 + 竖直搬运 + 精密插入**。
+       采样管一开始竖立在空地上，取样座（方形导向井，内径 8cm、高 5cm）在另一侧。
+       操作：夹住管身 -> 保持竖直抬起来 -> 平移到井口上方 -> 下压坐底 -> 松爪。
+       判据：管底落座（离井底 <5mm）+ 管轴偏离竖直 <8° + 横向偏心 <15mm。
+
+       为什么做成"导向井"而不是"插进软泥"：本模型里沉积物是刚体，真插进去要靠软的
+       接触模型近似，深度会随夹持力漂移、判据不干脆。导向井是真实存在的工装，
+       判据也是纯几何量（管底高度/倾角/偏心），可复现。
+       注意 x/y 尺寸相等：圆柱 x=y=半径，天然满足。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <!-- 采样管：圆柱 r=2cm、长 15cm，竖直站立（底部平放在沉积物面上 z=0.35，中心 0.425） -->
+    <body name="object" pos="1.60 0.09 0.425">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="cylinder" size="0.02 0.075" mass="0.12"
+            solref="0.002 1" rgba="0.56 0.59 0.62 1" friction="0.7 0.02 0.001"/>
+      <site name="corer_tip_site" pos="0 0 -0.075" size="0.006"/>
+    </body>
+
+    <!-- 取样座 = 方形导向井（4 面薄壁，内净 8x8cm，壁高 5cm）。
+         site 放在"管子坐底时的中心高度"（0.075），所以判据直接用 site 与管心距离。
+         井底就是沉积物面上表面（z=0.35）。 -->
+    <body name="place_target" pos="1.60 -0.07 0.35">
+      <geom name="socket_wall_xp" type="box" size="0.004 0.048 0.025" pos="0.044 0 0.025"
+            rgba="0.48 0.46 0.30 1" friction="0.9 0.02 0.001"/>
+      <geom name="socket_wall_xn" type="box" size="0.004 0.048 0.025" pos="-0.044 0 0.025"
+            rgba="0.48 0.46 0.30 1" friction="0.9 0.02 0.001"/>
+      <geom name="socket_wall_yp" type="box" size="0.04 0.004 0.025" pos="0 0.044 0.025"
+            rgba="0.48 0.46 0.30 1" friction="0.9 0.02 0.001"/>
+      <geom name="socket_wall_yn" type="box" size="0.04 0.004 0.025" pos="0 -0.044 0.025"
+            rgba="0.48 0.46 0.30 1" friction="0.9 0.02 0.001"/>
+      <site name="place_target_site" pos="0 0 0.075" size="0.01"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.09 0.425 1 0 0 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>

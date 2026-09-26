@@ -1,0 +1,37 @@
+<mujoco model="underwater_sampling_l6">
+  <!-- L6 探针点测
+       难度轴：**mm 级对准 + 接触力上限 + 长保持**。
+       探针平放在沉积物面上（针尖朝 +x），管壁测点在远处立块的 -x 面上。
+       操作：夹住探针手柄 -> 平移到测点正前方 -> 前推（W）让针尖顶住测点 -> 保持住不松。
+       判据：针尖 site 距测点 <8mm + 接触力 < 上限（压过头算失败）+ 保持 2s。
+
+       几何要点：针尖从"齿面中点"沿 +x 伸出 8cm，所以齿面中点只需走到 x≈1.66，
+       测点（x=1.74）就够得着 —— 留出 2cm 余量，齿条不会先撞上立块。
+       圆柱 x=y=半径，满足"x 尺寸 == y 尺寸"的夹爪标定约束。 -->
+  <include file="_base.xml"/>
+
+  <worldbody>
+    <!-- 探针：手柄(被夹的圆柱 r=2cm 长 6cm) + 细针尖(沿本体 +z 伸出)。本体绕 y 转 90° => 针尖朝世界 +x -->
+    <body name="object" pos="1.60 0.06 0.37" quat="0.70710678 0 0.70710678 0">
+      <freejoint name="object_joint"/>
+      <geom name="object_geom" type="cylinder" size="0.02 0.03" mass="0.08"
+            solref="0.002 1" rgba="0.54 0.57 0.60 1" friction="0.7 0.02 0.001"/>
+      <geom name="probe_tip_geom" type="cylinder" size="0.004 0.025" pos="0 0 0.055" mass="0.01"
+            rgba="0.85 0.76 0.32 1" friction="0.7 0.02 0.001"/>
+      <site name="probe_tip_site" pos="0 0 0.08" size="0.006"/>
+    </body>
+
+    <!-- 管壁测点载体：矮立块，-x 面朝向机器人；测点在面上 z=0.40 处 -->
+    <body name="place_target" pos="1.77 0.02 0.35">
+      <geom name="panel_geom" type="box" size="0.03 0.06 0.055" pos="0 0 0.055"
+            rgba="0.42 0.41 0.34 1" friction="0.8 0.02 0.001"/>
+      <site name="place_target_site" pos="-0.03 0 0.05" size="0.008"/>
+      <site name="panel_surface_site" pos="-0.03 0 0.05" size="0.002" rgba="0.9 0.3 0.2 1"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <key name="home" qpos="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22 1.60 0.06 0.37 0.70710678 0 0.70710678 0"
+         ctrl="0.0374 -0.5858 -1.4717 0.3109 -0.1223 -1.5642 0.22 0.22"/>
+  </keyframe>
+</mujoco>
